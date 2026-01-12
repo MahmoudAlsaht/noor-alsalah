@@ -51,9 +51,26 @@ const IRBID_COORDINATES = new Coordinates(32.5568, 35.8469);
 
 /**
  * Jordan Ministry of Awqaf calculation method (Custom)
- * Fajr: 18°, Isha: 18° (matching official Jordan times)
+ * Based on official Jordan parameters:
+ * - Fajr angle: 18°
+ * - Isha angle: 18°
+ * - Madhab: Shafi (standard for Jordan)
  */
-const JORDAN_METHOD = CalculationMethod.MuslimWorldLeague();
+function getJordanMethod(): CalculationParameters {
+    const params = new CalculationParameters('Other', 18, 18);
+    // Jordan Ministry of Awqaf adds ~4 minutes to Maghrib (sunset) as safety buffer
+    params.adjustments = {
+        fajr: 0,
+        sunrise: 0,
+        dhuhr: 0,
+        asr: 0,
+        maghrib: 4,
+        isha: 0,
+    };
+    return params;
+}
+
+const JORDAN_METHOD = getJordanMethod();
 
 /**
  * Format seconds into "HH:MM:SS" countdown string
