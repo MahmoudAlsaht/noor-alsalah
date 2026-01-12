@@ -7,14 +7,23 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest"
+    "test": "vitest",
+    "build:android": "npm run build && npx cap sync && cd android && ./gradlew assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk ../public/noor-alsalah.apk && echo 'APK Built and Moved to public/noor-alsalah.apk ✅'"
   },
   "dependencies": {
+    "@capacitor-community/file-opener": "^8.0.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/dialog": "^8.0.0",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0",
+    "@capacitor/preferences": "^8.0.0",
     "adhan": "^4.4.3",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
-    "next-pwa": "^5.6.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },

@@ -1,15 +1,19 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Book, Clock, ExternalLink, Bell, Settings } from 'lucide-react';
+import { Book, Clock, ExternalLink, Settings } from 'lucide-react';
 import { usePrayerTimes } from '@/hooks/usePrayerTimes';
 import { usePrayerTracker } from '@/hooks/usePrayerTracker';
 import { useQuranProgress } from '@/hooks/useQuranProgress';
+import { useAlarmSound } from '@/hooks/useAlarmSound';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
 import { usePrayerReminder } from '@/hooks/usePrayerReminder';
+import { useWidgetSync } from '@/hooks/useWidgetSync'; // Import
+import { useAppUpdater } from '@/hooks/useAppUpdater'; // Import Updater
+import { isNativeApp } from '@/lib/platform'; // Import Platform Check
 import { PrayerRow } from '@/components/PrayerRow';
 import styles from './page.module.css';
 
@@ -17,8 +21,15 @@ export default function Home() {
   const { prayers, nextPrayer, timeRemaining, currentDate, isLoading } = usePrayerTimes();
   const { isPrayerDone, togglePrayer, completedCount, totalCount } = usePrayerTracker();
   const { currentPage, markPageRead, quranComUrl } = useQuranProgress();
-  const { isSupported, permission, requestPermission, scheduleNotification, cancelNotification } = useNotifications();
+  const { permission, scheduleNotification, cancelNotification } = useNotifications();
   const { settings } = useAlarmSettings();
+  const { selectedSound } = useAlarmSound();
+
+  // Sync data to native widget
+  useWidgetSync(prayers, currentDate.toLocaleDateString('ar-JO'), nextPrayer);
+
+  // Check for updates automatically
+  useAppUpdater();
 
   // Find current prayer (the one we're in now, not the next one)
   const getCurrentPrayer = () => {
@@ -43,7 +54,24 @@ export default function Home() {
 
   // Schedule notifications for upcoming prayers
   useEffect(() => {
+    // If native, we don't use this web-based scheduling effect for browser notifications
+    // Native alarms are handled via the hook's internal logic or separate effect if needed.
+    // However, the current scheduleNotification hook handles native inside it.
+    // We just need to make sure we don't request duplicate permissions or show UI.
+
+    // BUT checking existing logic: scheduleNotification handles both. 
+    // The issue might be the Permission Button in UI.
+
     if (permission !== 'granted' || prayers.length === 0) return;
+
+    // Map sound ID to actual filename for Native
+    // Note: These files must exist in android/app/src/main/res/raw/
+    const soundMapping: Record<string, string> = {
+      default: 'adhan.mp3',
+      gentle: 'gentle.mp3',
+      custom: 'adhan.mp3', // Fallback for native custom sound
+    };
+    const soundFile = soundMapping[selectedSound] || 'adhan.mp3';
 
     prayers.forEach((prayer) => {
       // Only schedule for trackable prayers (not sunrise)
@@ -71,12 +99,20 @@ export default function Home() {
         prayer.time,
         prayer.id,
         'atTime',
-        onFireCallback
+        onFireCallback,
+        soundFile // Pass sound file
       );
     });
-  }, [prayers, permission, scheduleNotification, cancelNotification, isPrayerDone, settings]);
+  }, [prayers, permission, scheduleNotification, cancelNotification, isPrayerDone, settings, selectedSound]);
 
-  if (isLoading) {
+  // Fix Hydration Mismatch
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isMounted || isLoading) {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>جاري التحميل...</div>
@@ -98,22 +134,14 @@ export default function Home() {
         <h1 className={styles.title}>أوقات الصلاة</h1>
         <p className={styles.subtitle}>إربد، الأردن</p>
 
-        {/* Notification Permission Button */}
-        {isSupported && permission !== 'granted' && (
-          <button
-            className="btn btn-secondary"
-            onClick={requestPermission}
-            style={{ marginTop: '0.5rem' }}
-          >
-            <Bell size={16} />
-            تفعيل الإشعارات
-          </button>
-        )}
 
-        {/* Settings Link */}
-        <Link href="/settings" className={styles.settingsBtn}>
-          <Settings size={20} />
-        </Link>
+
+        {/* Settings Link - Native Only */}
+        {isNativeApp() && (
+          <Link href="/settings" className={styles.settingsBtn}>
+            <Settings size={20} />
+          </Link>
+        )}
       </header>
 
       {/* Next Prayer Card */}

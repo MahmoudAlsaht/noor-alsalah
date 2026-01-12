@@ -4,6 +4,8 @@ import { ArrowRight, Bell, Clock, Volume2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
 import { useAlarmSound, ALARM_SOUNDS } from '@/hooks/useAlarmSound';
+import { isNativeApp } from '@/lib/platform';
+import { DownloadAppSection } from '@/components/DownloadAppSection';
 import styles from './settings.module.css';
 
 const PRAYER_LABELS: Record<string, string> = {
@@ -115,22 +117,28 @@ export default function SettingsPage() {
                     </select>
                 </div>
 
-                {/* Custom Sound Upload */}
-                <div className={styles.uploadRow}>
-                    <label>رفع صوت مخصص:</label>
-                    <input
-                        type="file"
-                        accept="audio/*"
-                        onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                                setCustomSound(file);
-                            }
-                        }}
-                        className={styles.fileInput}
-                    />
-                    {hasCustomSound && <span className={styles.uploadStatus}>✅ تم رفع صوت مخصص</span>}
-                </div>
+                {/* Custom Sound Upload - Web Only */}
+                {!isNativeApp() ? (
+                    <div className={styles.uploadRow}>
+                        <label>رفع صوت مخصص:</label>
+                        <input
+                            type="file"
+                            accept="audio/*"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    setCustomSound(file);
+                                }
+                            }}
+                            className={styles.fileInput}
+                        />
+                        {hasCustomSound && <span className={styles.uploadStatus}>✅ تم رفع صوت مخصص</span>}
+                    </div>
+                ) : (
+                    <div className={styles.textSecondary} style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
+                        * الأصوات المخصصة غير متوفرة في التطبيق حالياً.
+                    </div>
+                )}
 
                 <button
                     className="btn btn-secondary"
@@ -140,6 +148,10 @@ export default function SettingsPage() {
                     {isPlaying ? 'إيقاف' : 'تجربة الصوت'}
                 </button>
             </section>
+            {/* ... other sections ... */}
+
+            {/* Download App Section */}
+            <DownloadAppSection />
         </div>
     );
 }

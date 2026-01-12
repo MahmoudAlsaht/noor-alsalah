@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Noor Al-Salah</string>
+    <string name="title_activity_main">Noor Al-Salah</string>
+    <string name="package_name">com.nooralsalah.family</string>
+    <string name="custom_url_scheme">com.nooralsalah.family</string>
+</resources>

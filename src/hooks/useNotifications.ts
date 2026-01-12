@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { isNativeApp } from '../lib/platform';
 
 /**
- * Scheduled notification data
+ * Scheduled notification data (Web)
  */
 interface ScheduledNotification {
     prayerId: string;
@@ -16,7 +18,7 @@ interface ScheduledNotification {
  */
 export interface UseNotificationsReturn {
     isSupported: boolean;
-    permission: NotificationPermission | 'unsupported';
+    permission: NotificationPermission | 'unsupported' | 'granted' | 'denied';
     requestPermission: () => Promise<void>;
     sendNotification: (title: string, options?: NotificationOptions & { persistent?: boolean }) => void;
     scheduleNotification: (
@@ -25,15 +27,34 @@ export interface UseNotificationsReturn {
         time: Date,
         prayerId: string,
         type?: 'atTime' | 'beforeEnd',
-        onFire?: () => void
+        onFire?: () => void,
+        sound?: string
     ) => void;
     cancelNotification: (prayerId: string, type?: 'atTime' | 'beforeEnd') => void;
 }
 
 /**
- * Check notification support (for lazy init)
+ * Helper to generate unique ID for Capacitor notifications
+ */
+function generateNotificationId(prayerId: string, type: string): number {
+    // Simple hash: Sum of char codes + type offset
+    // This is simple but effectively unique for the limited set of prayer names
+    let hash = 0;
+    const str = prayerId + type;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+}
+
+/**
+ * checkNotificationSupport
  */
 function checkNotificationSupport(): { supported: boolean; perm: NotificationPermission | 'unsupported' } {
+    if (isNativeApp()) {
+        return { supported: true, perm: 'default' }; // Native always supported, perm checked later
+    }
     if (typeof window !== 'undefined' && 'Notification' in window) {
         return { supported: true, perm: Notification.permission };
     }
@@ -42,51 +63,72 @@ function checkNotificationSupport(): { supported: boolean; perm: NotificationPer
 
 /**
  * useNotifications Hook
- * 
- * Handles browser notification permissions and scheduling.
- * Supports cancelling notifications (e.g., when prayer is marked done).
  */
 export function useNotifications(): UseNotificationsReturn {
-    // Lazy initialization
     const [isSupported] = useState(() => checkNotificationSupport().supported);
-    const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => checkNotificationSupport().perm);
-    const scheduledRef = useRef<ScheduledNotification[]>([]);
+    const [permission, setPermission] = useState<NotificationPermission | 'unsupported' | 'granted' | 'denied'>(() => checkNotificationSupport().perm);
+    const scheduledRef = useRef<ScheduledNotification[]>([]); // For Web timeouts
 
     /**
      * Request notification permission
      */
     const requestPermission = useCallback(async () => {
         if (!isSupported) return;
-        try {
-            const result = await Notification.requestPermission();
-            setPermission(result);
-        } catch {
-            console.error('Failed to request notification permission');
+
+        if (isNativeApp()) {
+            try {
+                const result = await LocalNotifications.requestPermissions();
+                setPermission(result.display === 'granted' ? 'granted' : 'denied');
+            } catch (e) {
+                console.error('Native permission request failed', e);
+            }
+        } else {
+            try {
+                const result = await Notification.requestPermission();
+                setPermission(result);
+            } catch {
+                console.error('Failed to request notification permission');
+            }
         }
     }, [isSupported]);
 
     /**
      * Send immediate notification
-     * @param persistent - If true, notification stays on lock screen until user interacts
      */
     const sendNotification = useCallback(
-        (title: string, options?: NotificationOptions & { persistent?: boolean }) => {
-            if (!isSupported || permission !== 'granted') return;
+        async (title: string, options?: NotificationOptions & { persistent?: boolean }) => {
+            if (!isSupported) return;
 
-            const notificationOptions: NotificationOptions = {
-                icon: '/icon-192x192.png',
-                badge: '/icon-192x192.png',
-                requireInteraction: options?.persistent ?? false,
-                ...options,
-            };
-
-            // Use Service Worker registration if available for better PWA support
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.ready.then((registration) => {
-                    registration.showNotification(title, notificationOptions);
+            if (isNativeApp()) {
+                // For native, we just schedule it 1s in future as "immediate"
+                await LocalNotifications.schedule({
+                    notifications: [{
+                        title,
+                        body: options?.body || '',
+                        id: Math.floor(Date.now() / 1000), // Random ID for immediate
+                        schedule: { at: new Date(Date.now() + 100) },
+                        sound: 'adhan.mp3', // Make sure this file exists in android/app/src/main/res/raw
+                        smallIcon: 'ic_stat_icon_config_sample', // Default capacitor icon
+                        actionTypeId: '',
+                        extra: null
+                    }]
                 });
             } else {
-                new Notification(title, notificationOptions);
+                if (permission !== 'granted') return;
+                const notificationOptions: NotificationOptions = {
+                    icon: '/icon-192x192.png',
+                    badge: '/icon-192x192.png',
+                    requireInteraction: options?.persistent ?? false,
+                    ...options,
+                };
+
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.ready.then((registration) => {
+                        registration.showNotification(title, notificationOptions);
+                    });
+                } else {
+                    new Notification(title, notificationOptions);
+                }
             }
         },
         [isSupported, permission]
@@ -96,49 +138,73 @@ export function useNotifications(): UseNotificationsReturn {
      * Cancel a scheduled notification
      */
     const cancelNotification = useCallback(
-        (prayerId: string, type: 'atTime' | 'beforeEnd' = 'atTime') => {
-            const index = scheduledRef.current.findIndex(
-                (n) => n.prayerId === prayerId && n.type === type
-            );
-            if (index !== -1) {
-                clearTimeout(scheduledRef.current[index].timeoutId);
-                scheduledRef.current.splice(index, 1);
+        async (prayerId: string, type: 'atTime' | 'beforeEnd' = 'atTime') => {
+            if (isNativeApp()) {
+                const id = generateNotificationId(prayerId, type);
+                await LocalNotifications.cancel({ notifications: [{ id }] });
+            } else {
+                const index = scheduledRef.current.findIndex(
+                    (n) => n.prayerId === prayerId && n.type === type
+                );
+                if (index !== -1) {
+                    clearTimeout(scheduledRef.current[index].timeoutId);
+                    scheduledRef.current.splice(index, 1);
+                }
             }
         },
         []
     );
 
     /**
-     * Schedule a notification for a specific time
+     * Schedule a notification
      */
     const scheduleNotification = useCallback(
-        (
+        async (
             title: string,
             options: NotificationOptions,
             time: Date,
             prayerId: string,
             type: 'atTime' | 'beforeEnd' = 'atTime',
-            onFire?: () => void
+            onFire?: () => void,
+            sound?: string // New parameter
         ) => {
-            if (!isSupported || permission !== 'granted') return;
+            if (!isSupported) return;
 
-            // Cancel any existing notification for this prayer/type
-            cancelNotification(prayerId, type);
+            // Cancel existing
+            await cancelNotification(prayerId, type);
 
             const delay = time.getTime() - Date.now();
-            if (delay <= 0) return; // Don't schedule past notifications
+            if (delay <= 0) return;
 
-            const timeoutId = setTimeout(() => {
-                sendNotification(title, options);
-                // Call the onFire callback (e.g., to play alarm sound)
-                if (onFire) onFire();
-                // Remove from scheduled list after firing
-                scheduledRef.current = scheduledRef.current.filter(
-                    (n) => n.prayerId !== prayerId || n.type !== type
-                );
-            }, delay);
+            if (isNativeApp()) {
+                const id = generateNotificationId(prayerId, type);
+                try {
+                    await LocalNotifications.schedule({
+                        notifications: [{
+                            title,
+                            body: options.body || '',
+                            id,
+                            schedule: { at: time, allowWhileIdle: true },
+                            sound: sound || 'adhan.mp3', // Use passed sound or default
+                            smallIcon: 'ic_stat_icon_config_sample',
+                            channelId: 'prayer_channel',
+                        }]
+                    });
+                } catch (e) {
+                    console.error('Failed to schedule native notification', e);
+                }
+            } else {
+                if (permission !== 'granted') return;
+                const timeoutId = setTimeout(() => {
+                    sendNotification(title, options);
+                    if (onFire) onFire();
+                    scheduledRef.current = scheduledRef.current.filter(
+                        (n) => n.prayerId !== prayerId || n.type !== type
+                    );
+                }, delay);
 
-            scheduledRef.current.push({ prayerId, type, timeoutId });
+                scheduledRef.current.push({ prayerId, type, timeoutId });
+            }
         },
         [isSupported, permission, cancelNotification, sendNotification]
     );

@@ -1,16 +1,11 @@
 import type { NextConfig } from "next";
-import withPWAInit from "next-pwa";
-
-const withPWA = withPWAInit({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === "development",
-});
-
 const nextConfig: NextConfig = {
-  // Silence turbo/webpack conflict from next-pwa
-  turbopack: {},
+  // Capacitor Requirement: Static Export
+  output: "export",
+  // Capacitor Requirement: Avoid optimization issues
+  images: { unoptimized: true },
+  // Capacitor Requirement: Better routing support
+  trailingSlash: true,
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;
