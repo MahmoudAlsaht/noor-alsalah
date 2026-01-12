@@ -9,7 +9,7 @@ import { isNativeApp } from '../lib/platform';
 
 // IMPORTANT: Replace this with your actual deployed website URL
 // The app needs to know where to check for updates
-const UPDATE_HOST = 'https://noor-alsalah-family.vercel.app'; // Placeholder, user should update
+const UPDATE_HOST = 'https://noor-alsalah.vercel.app'; // Correct URL
 
 interface VersionInfo {
     version: string;

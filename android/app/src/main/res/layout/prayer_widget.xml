@@ -5,7 +5,7 @@
     android:background="@drawable/widget_background"
     android:orientation="vertical"
     android:padding="16dp"
-    android:theme="@style/Theme.DeviceDefault.Light">
+    android:theme="@android:style/Theme.DeviceDefault.Light">
 
     <TextView
         android:id="@+id/widget_date"

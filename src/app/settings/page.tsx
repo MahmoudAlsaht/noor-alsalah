@@ -153,7 +153,7 @@ export default function SettingsPage() {
 
                 <button
                     className="btn btn-secondary"
-                    onClick={isPlaying ? stopAlarm : playAlarm}
+                    onClick={isPlaying ? stopAlarm : () => playAlarm(false)}
                     style={{ marginTop: '0.5rem' }}
                 >
                     {isPlaying ? 'إيقاف' : 'تجربة الصوت'}

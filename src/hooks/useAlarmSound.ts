@@ -26,7 +26,7 @@ export interface UseAlarmSoundReturn {
     selectedSound: AlarmSoundId;
     setSelectedSound: (id: AlarmSoundId) => void;
     setCustomSound: (file: File) => Promise<void>;
-    playAlarm: () => void;
+    playAlarm: (loop?: boolean) => void;
     stopAlarm: () => void;
     isPlaying: boolean;
     hasCustomSound: boolean;
@@ -94,7 +94,7 @@ export function useAlarmSound(): UseAlarmSoundReturn {
     /**
      * Play the selected alarm sound
      */
-    const playAlarm = useCallback(() => {
+    const playAlarm = useCallback((loop: boolean = true) => {
         // Stop any existing audio first
         if (audioRef.current) {
             audioRef.current.pause();
@@ -113,9 +113,14 @@ export function useAlarmSound(): UseAlarmSoundReturn {
         }
 
         const audio = new Audio();
-        audio.loop = true;
+        audio.loop = loop;
         audio.preload = 'auto';
         audioRef.current = audio;
+
+        // Reset state when audio ends (if not looping)
+        audio.onended = () => {
+            setIsPlaying(false);
+        };
 
         // Wait for audio to be ready before playing
         audio.oncanplaythrough = () => {
@@ -123,6 +128,7 @@ export function useAlarmSound(): UseAlarmSoundReturn {
                 setIsPlaying(true);
             }).catch((err) => {
                 console.warn('Audio play failed:', err);
+                setIsPlaying(false);
             });
         };
 
