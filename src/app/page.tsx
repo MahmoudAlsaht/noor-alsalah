@@ -15,6 +15,7 @@ import { useWidgetSync } from '@/hooks/useWidgetSync'; // Import
 import { useAppUpdater } from '@/hooks/useAppUpdater'; // Import Updater
 import { isNativeApp } from '@/lib/platform'; // Import Platform Check
 import { PrayerRow } from '@/components/PrayerRow';
+import { DownloadAppSection } from '@/components/DownloadAppSection'; // Import
 import styles from './page.module.css';
 
 export default function Home() {
@@ -205,6 +206,9 @@ export default function Home() {
           </button>
         </div>
       </section>
+
+      {/* Download App Section - Web Only */}
+      {!isNativeApp() && <DownloadAppSection />}
     </div>
   );
 }
