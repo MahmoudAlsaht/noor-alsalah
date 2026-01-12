@@ -132,7 +132,7 @@ export default function Home() {
           height={60}
           className={styles.logo}
         />
-        <h1 className={styles.title}>أوقات الصلاة</h1>
+        <h1 className={styles.title}>نور الصلاة</h1>
         <p className={styles.subtitle}>إربد، الأردن</p>
 
 
