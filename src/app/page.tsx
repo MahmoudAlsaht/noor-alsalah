@@ -9,7 +9,7 @@ import { PrayerRow } from '@/components/PrayerRow';
 import styles from './page.module.css';
 
 export default function Home() {
-  const { prayers, nextPrayer, timeRemaining, isLoading } = usePrayerTimes();
+  const { prayers, nextPrayer, timeRemaining, currentDate, isLoading } = usePrayerTimes();
   const { isPrayerDone, togglePrayer, completedCount, totalCount } = usePrayerTracker();
   const { currentPage, markPageRead, quranComUrl } = useQuranProgress();
 
@@ -66,6 +66,7 @@ export default function Home() {
               prayer={prayer}
               isDone={isPrayerDone(prayer.id)}
               isNext={nextPrayer?.id === prayer.id}
+              currentTime={currentDate}
               onToggle={togglePrayer}
             />
           ))}

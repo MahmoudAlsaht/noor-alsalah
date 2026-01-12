@@ -8,6 +8,7 @@ interface PrayerRowProps {
     prayer: PrayerTimeEntry;
     isDone: boolean;
     isNext: boolean;
+    currentTime: Date;
     onToggle: (prayerId: TrackablePrayer) => void;
 }
 
@@ -16,12 +17,17 @@ interface PrayerRowProps {
  * 
  * Displays a single prayer time with checkbox for tracking.
  * Highlights the next prayer and shows strike-through when done.
+ * Disables checkbox for prayers that haven't occurred yet.
  */
-export function PrayerRow({ prayer, isDone, isNext, onToggle }: PrayerRowProps) {
+export function PrayerRow({ prayer, isDone, isNext, currentTime, onToggle }: PrayerRowProps) {
     const isTrackable = TRACKABLE_PRAYERS.includes(prayer.id as TrackablePrayer);
 
+    // Prayer can only be marked as done if its time has passed
+    const hasPrayerTimeOccurred = currentTime >= prayer.time;
+    const canMarkAsDone = isTrackable && hasPrayerTimeOccurred;
+
     const handleCheckboxChange = () => {
-        if (isTrackable) {
+        if (canMarkAsDone) {
             onToggle(prayer.id as TrackablePrayer);
         }
     };
@@ -30,14 +36,15 @@ export function PrayerRow({ prayer, isDone, isNext, onToggle }: PrayerRowProps) 
         <div
             className={`${styles.row} ${isNext ? styles.next : ''} ${isDone ? styles.done : ''}`}
         >
-            {/* Checkbox - only for trackable prayers */}
+            {/* Checkbox - only for trackable prayers that have occurred */}
             <div className={styles.checkboxWrapper}>
                 {isTrackable ? (
                     <input
                         type="checkbox"
-                        className="checkbox-prayer"
+                        className={`checkbox-prayer ${!hasPrayerTimeOccurred ? styles.disabled : ''}`}
                         checked={isDone}
                         onChange={handleCheckboxChange}
+                        disabled={!hasPrayerTimeOccurred}
                         aria-label={`تم صلاة ${prayer.nameAr}`}
                     />
                 ) : (
@@ -56,3 +63,4 @@ export function PrayerRow({ prayer, isDone, isNext, onToggle }: PrayerRowProps) 
         </div>
     );
 }
+

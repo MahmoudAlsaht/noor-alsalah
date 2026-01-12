@@ -60,3 +60,9 @@
     border-radius: 9999px;
     font-weight: 600;
 }
+
+/* Disabled checkbox for future prayers */
+.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}

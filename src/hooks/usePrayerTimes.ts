@@ -131,7 +131,8 @@ export function usePrayerTimes(): UsePrayerTimesReturn {
                 nameAr: PRAYER_NAMES[id],
                 nameEn: id.charAt(0).toUpperCase() + id.slice(1),
                 time,
-                timeFormatted: format(time, 'hh:mm a'),
+                // Uses device locale settings (respects 12h/24h preference)
+                timeFormatted: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             };
         });
     }, [prayerTimes]);
