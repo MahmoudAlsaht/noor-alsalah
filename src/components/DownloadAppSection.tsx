@@ -15,7 +15,7 @@ export function DownloadAppSection() {
                 <h2 style={{ color: '#2dd4bf' }}>تطبيق الأندرويد</h2>
             </div>
             <p className={styles.note}>
-                للحصول على الموقت الدقيق والويدجت، حمل التطبيق المخصص للعائلة.
+                للحصول على الموقت الدقيق والويدجت، حمل التطبيق.
             </p>
 
             <a
