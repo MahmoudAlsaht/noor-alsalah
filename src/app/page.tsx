@@ -15,7 +15,7 @@ export default function Home() {
   const { prayers, nextPrayer, timeRemaining, currentDate, isLoading } = usePrayerTimes();
   const { isPrayerDone, togglePrayer, completedCount, totalCount } = usePrayerTracker();
   const { currentPage, markPageRead, quranComUrl } = useQuranProgress();
-  const { isSupported, permission, requestPermission, scheduleNotification } = useNotifications();
+  const { isSupported, permission, requestPermission, scheduleNotification, cancelNotification } = useNotifications();
 
   // Schedule notifications for upcoming prayers
   useEffect(() => {
@@ -25,13 +25,21 @@ export default function Home() {
       // Only schedule for trackable prayers (not sunrise)
       if (prayer.id === 'sunrise') return;
 
+      // Don't schedule if prayer is already marked as done
+      if (isPrayerDone(prayer.id)) {
+        cancelNotification(prayer.id); // Cancel any existing
+        return;
+      }
+
       scheduleNotification(
         `حان وقت صلاة ${prayer.nameAr}`,
         { body: 'حي على الصلاة 🕌', tag: prayer.id },
-        prayer.time
+        prayer.time,
+        prayer.id,
+        'atTime'
       );
     });
-  }, [prayers, permission, scheduleNotification]);
+  }, [prayers, permission, scheduleNotification, cancelNotification, isPrayerDone]);
 
   if (isLoading) {
     return (

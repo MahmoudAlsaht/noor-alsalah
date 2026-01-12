@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 /**
  * Alarm timing options
@@ -61,6 +61,23 @@ export interface UseAlarmSettingsReturn {
 }
 
 /**
+ * Load settings from localStorage
+ */
+function loadSettings(): AlarmSettings {
+    if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+        }
+    } catch {
+        // Ignore errors
+    }
+    return DEFAULT_SETTINGS;
+}
+
+/**
  * useAlarmSettings Hook
  * 
  * Manages per-prayer alarm preferences:
@@ -69,22 +86,16 @@ export interface UseAlarmSettingsReturn {
  * - First Fajr adhan support
  */
 export function useAlarmSettings(): UseAlarmSettingsReturn {
-    const [settings, setSettings] = useState<AlarmSettings>(DEFAULT_SETTINGS);
+    // Use lazy initialization to load from localStorage immediately
+    const [settings, setSettings] = useState<AlarmSettings>(() => loadSettings());
+    const isInitialMount = useRef(true);
 
-    // Load from localStorage
+    // Save to localStorage (but skip initial mount to prevent overwriting)
     useEffect(() => {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(stored) });
-            }
-        } catch {
-            // Use defaults
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
         }
-    }, []);
-
-    // Save to localStorage
-    useEffect(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     }, [settings]);
 

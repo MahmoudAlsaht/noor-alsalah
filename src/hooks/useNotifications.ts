@@ -1,6 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+
+/**
+ * Scheduled notification info
+ */
+interface ScheduledNotification {
+    timeoutId: ReturnType<typeof setTimeout>;
+    prayerId: string;
+    type: 'atTime' | 'beforeEnd';
+}
 
 /**
  * Hook return type
@@ -10,18 +19,26 @@ export interface UseNotificationsReturn {
     permission: NotificationPermission | 'unsupported';
     requestPermission: () => Promise<boolean>;
     sendNotification: (title: string, options?: NotificationOptions) => void;
-    scheduleNotification: (title: string, options: NotificationOptions, date: Date) => void;
+    scheduleNotification: (
+        title: string,
+        options: NotificationOptions,
+        date: Date,
+        prayerId: string,
+        type: 'atTime' | 'beforeEnd'
+    ) => void;
+    cancelNotification: (prayerId: string, type?: 'atTime' | 'beforeEnd') => void;
 }
 
 /**
  * useNotifications Hook
  * 
  * Handles browser notification permissions and scheduling.
- * Works with PWA Service Worker for background notifications.
+ * Supports cancelling notifications (e.g., when prayer is marked done).
  */
 export function useNotifications(): UseNotificationsReturn {
     const [isSupported, setIsSupported] = useState(false);
     const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('unsupported');
+    const scheduledRef = useRef<ScheduledNotification[]>([]);
 
     // Check support on mount
     useEffect(() => {
@@ -29,6 +46,13 @@ export function useNotifications(): UseNotificationsReturn {
             setIsSupported(true);
             setPermission(Notification.permission);
         }
+    }, []);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            scheduledRef.current.forEach((n) => clearTimeout(n.timeoutId));
+        };
     }, []);
 
     /**
@@ -73,21 +97,52 @@ export function useNotifications(): UseNotificationsReturn {
     );
 
     /**
+     * Cancel a scheduled notification
+     */
+    const cancelNotification = useCallback(
+        (prayerId: string, type?: 'atTime' | 'beforeEnd') => {
+            scheduledRef.current = scheduledRef.current.filter((n) => {
+                if (n.prayerId === prayerId && (type === undefined || n.type === type)) {
+                    clearTimeout(n.timeoutId);
+                    return false;
+                }
+                return true;
+            });
+        },
+        []
+    );
+
+    /**
      * Schedule a notification for a specific time
      */
     const scheduleNotification = useCallback(
-        (title: string, options: NotificationOptions, date: Date) => {
+        (
+            title: string,
+            options: NotificationOptions,
+            date: Date,
+            prayerId: string,
+            type: 'atTime' | 'beforeEnd'
+        ) => {
             const now = new Date();
             const delay = date.getTime() - now.getTime();
 
             if (delay <= 0) return; // Time has passed
 
-            // Schedule with setTimeout (works while app is open)
-            setTimeout(() => {
+            // Cancel any existing notification with same prayerId and type
+            cancelNotification(prayerId, type);
+
+            // Schedule new notification
+            const timeoutId = setTimeout(() => {
                 sendNotification(title, options);
+                // Remove from scheduled list after firing
+                scheduledRef.current = scheduledRef.current.filter(
+                    (n) => n.prayerId !== prayerId || n.type !== type
+                );
             }, delay);
+
+            scheduledRef.current.push({ timeoutId, prayerId, type });
         },
-        [sendNotification]
+        [sendNotification, cancelNotification]
     );
 
     return {
@@ -96,5 +151,6 @@ export function useNotifications(): UseNotificationsReturn {
         requestPermission,
         sendNotification,
         scheduleNotification,
+        cancelNotification,
     };
 }
