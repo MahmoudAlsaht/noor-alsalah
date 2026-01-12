@@ -20,6 +20,7 @@
 
 /* Header */
 .header {
+  position: relative;
   text-align: center;
   padding: var(--spacing-md) 0;
 }
@@ -39,6 +40,25 @@
   font-size: 0.875rem;
   color: var(--color-text-secondary);
   margin-top: 0.25rem;
+}
+
+.settingsBtn {
+  position: absolute;
+  top: var(--spacing-md);
+  left: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--foreground);
+  transition: background var(--transition-fast);
+}
+
+.settingsBtn:hover {
+  background: var(--color-border);
 }
 
 /* Next Prayer Card */

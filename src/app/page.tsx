@@ -2,7 +2,8 @@
 
 import { useEffect } from 'react';
 import Image from 'next/image';
-import { Book, Clock, ExternalLink, Bell } from 'lucide-react';
+import Link from 'next/link';
+import { Book, Clock, ExternalLink, Bell, Settings } from 'lucide-react';
 import { usePrayerTimes, PRAYER_NAMES } from '@/hooks/usePrayerTimes';
 import { usePrayerTracker } from '@/hooks/usePrayerTracker';
 import { useQuranProgress } from '@/hooks/useQuranProgress';
@@ -65,6 +66,11 @@ export default function Home() {
             تفعيل الإشعارات
           </button>
         )}
+
+        {/* Settings Link */}
+        <Link href="/settings" className={styles.settingsBtn}>
+          <Settings size={20} />
+        </Link>
       </header>
 
       {/* Next Prayer Card */}
