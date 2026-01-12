@@ -1,6 +1,6 @@
 {
-    "version": "0.1.0",
-    "build": 1,
-    "releaseNote": "Initial Release",
+    "version": "0.1.1",
+    "build": 2,
+    "releaseNote": "تحسينات شاملة: إطلاق النسخة الأصلية (Native)، إزالة PWA، إضافة الويدجت، وتحسينات في الأداء.",
     "downloadUrl": "/noor-alsalah.apk"
 }
