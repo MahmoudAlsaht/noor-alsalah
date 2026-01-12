@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
+import { isNativeApp } from '@/lib/platform';
 import styles from './alarm.module.css';
 
 const PRAYER_NAMES: Record<string, string> = {
@@ -25,6 +26,15 @@ function AlarmContent() {
     const router = useRouter();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [isReady] = useState(true);
+
+    // Secure: Prevent Web Access
+    useEffect(() => {
+        if (!isNativeApp()) {
+            window.location.href = '/';
+        }
+    }, []);
+
+    if (!isNativeApp()) return null;
 
     const prayerId = searchParams.get('prayer') || 'fajr';
     const prayerName = PRAYER_NAMES[prayerId] || 'صلاة';

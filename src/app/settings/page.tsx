@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { ArrowRight, Bell, Clock, Volume2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
@@ -22,6 +23,16 @@ export default function SettingsPage() {
     const { selectedSound, setSelectedSound, setCustomSound, playAlarm, stopAlarm, isPlaying, hasCustomSound } = useAlarmSound();
 
     const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
+
+    // Secure: Prevent Web Access
+    useEffect(() => {
+        if (!isNativeApp()) {
+            window.location.href = '/'; // Direct redirect (no Router to avoid hydration lag)
+        }
+    }, []);
+
+    // Also hide content immediately while redirecting
+    if (!isNativeApp()) return null;
 
     return (
         <div className={styles.container}>
