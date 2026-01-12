@@ -1,0 +1,62 @@
+.row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: 0.75rem;
+    transition: background-color var(--transition-fast);
+}
+
+.row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Next Prayer Highlight */
+.next {
+    background-color: rgba(251, 191, 36, 0.1);
+    border: 1px solid var(--highlight);
+}
+
+/* Done State */
+.done .name,
+.done .time {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+/* Checkbox Wrapper */
+.checkboxWrapper {
+    width: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.placeholder {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+/* Prayer Name */
+.name {
+    flex: 1;
+    font-size: 1.125rem;
+    font-weight: 500;
+}
+
+/* Time */
+.time {
+    font-size: 1rem;
+    color: var(--color-text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Next Badge */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    background-color: var(--highlight);
+    color: var(--color-midnight);
+    border-radius: 9999px;
+    font-weight: 600;
+}

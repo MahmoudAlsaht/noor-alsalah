@@ -1,66 +1,101 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+
+import Image from 'next/image';
+import { Book, Clock, ExternalLink } from 'lucide-react';
+import { usePrayerTimes } from '@/hooks/usePrayerTimes';
+import { usePrayerTracker } from '@/hooks/usePrayerTracker';
+import { useQuranProgress } from '@/hooks/useQuranProgress';
+import { PrayerRow } from '@/components/PrayerRow';
+import styles from './page.module.css';
 
 export default function Home() {
+  const { prayers, nextPrayer, timeRemaining, isLoading } = usePrayerTimes();
+  const { isPrayerDone, togglePrayer, completedCount, totalCount } = usePrayerTracker();
+  const { currentPage, markPageRead, quranComUrl } = useQuranProgress();
+
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loading}>جاري التحميل...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
+    <div className={styles.container}>
+      {/* Header with Logo */}
+      <header className={styles.header}>
         <Image
+          src="/logo-master.png"
+          alt="Prayer Times"
+          width={60}
+          height={60}
           className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
         />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
+        <h1 className={styles.title}>أوقات الصلاة</h1>
+        <p className={styles.subtitle}>إربد، الأردن</p>
+      </header>
+
+      {/* Next Prayer Card */}
+      {nextPrayer && (
+        <section className={`card ${styles.nextPrayerCard}`}>
+          <div className={styles.nextPrayerLabel}>
+            <Clock size={18} />
+            <span>الصلاة القادمة</span>
+          </div>
+          <h2 className={styles.nextPrayerName}>{nextPrayer.nameAr}</h2>
+          <div className={styles.countdown}>{timeRemaining}</div>
+          <p className={styles.nextPrayerTime}>
+            {nextPrayer.timeFormatted}
           </p>
+        </section>
+      )}
+
+      {/* Prayer Times List */}
+      <section className={`card ${styles.prayerList}`}>
+        <div className={styles.sectionHeader}>
+          <h3>مواعيد اليوم</h3>
+          <span className="text-secondary">
+            {completedCount}/{totalCount}
+          </span>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+        <div className={styles.prayerRows}>
+          {prayers.map((prayer) => (
+            <PrayerRow
+              key={prayer.id}
+              prayer={prayer}
+              isDone={isPrayerDone(prayer.id)}
+              isNext={nextPrayer?.id === prayer.id}
+              onToggle={togglePrayer}
             />
-            Deploy Now
-          </a>
+          ))}
+        </div>
+      </section>
+
+      {/* Quran Progress Card */}
+      <section className={`card ${styles.quranCard}`}>
+        <div className={styles.sectionHeader}>
+          <div className={styles.quranTitle}>
+            <Book size={20} />
+            <h3>الورد اليومي</h3>
+          </div>
+        </div>
+        <p className={styles.quranPage}>الصفحة {currentPage}</p>
+        <div className={styles.quranActions}>
           <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
+            href={quranComUrl}
             target="_blank"
             rel="noopener noreferrer"
+            className="btn btn-secondary"
           >
-            Documentation
+            <ExternalLink size={16} />
+            اقرأ الآن
           </a>
+          <button className="btn btn-primary" onClick={markPageRead}>
+            تم القراءة
+          </button>
         </div>
-      </main>
+      </section>
     </div>
   );
 }
