@@ -12,7 +12,7 @@ export function DownloadAppSection() {
         <section className={`card ${styles.section}`} style={{ borderColor: '#2dd4bf', borderWidth: '1px' }}>
             <div className={styles.sectionHeader}>
                 <Smartphone size={20} color="#2dd4bf" />
-                <h2 style={{ color: '#2dd4bf' }}>تطبيق العائلة (أندرويد)</h2>
+                <h2 style={{ color: '#2dd4bf' }}>تطبيق الأندرويد</h2>
             </div>
             <p className={styles.note}>
                 للحصول على الموقت الدقيق والويدجت، حمل التطبيق المخصص للعائلة.
