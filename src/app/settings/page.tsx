@@ -188,16 +188,14 @@ export default function SettingsPage() {
                     <ExternalLink size={20} />
                     <h2>التحديثات</h2>
                 </div>
-                <div className={styles.soundRow}>
-                    <p style={{ fontSize: '0.9rem', color: '#94a3b8', margin: 0 }}>
-                        إبحث عن نسخة جديدة من التطبيق
-                    </p>
+                <div style={{ marginTop: '0.5rem' }}>
                     <button
                         className="btn btn-primary"
+                        style={{ width: '100%', padding: '1rem', justifyContent: 'center' }}
                         onClick={() => checkForUpdate(true)}
                         disabled={isChecking}
                     >
-                        {isChecking ? 'جاري البحث...' : 'بحث الآن'}
+                        {isChecking ? 'جاري البحث...' : 'ابحث عن نسخة جديدة من التطبيق'}
                     </button>
                 </div>
             </section>
