@@ -1,10 +1,12 @@
 'use client';
 
+import { useEffect } from 'react';
 import Image from 'next/image';
-import { Book, Clock, ExternalLink } from 'lucide-react';
-import { usePrayerTimes } from '@/hooks/usePrayerTimes';
+import { Book, Clock, ExternalLink, Bell } from 'lucide-react';
+import { usePrayerTimes, PRAYER_NAMES } from '@/hooks/usePrayerTimes';
 import { usePrayerTracker } from '@/hooks/usePrayerTracker';
 import { useQuranProgress } from '@/hooks/useQuranProgress';
+import { useNotifications } from '@/hooks/useNotifications';
 import { PrayerRow } from '@/components/PrayerRow';
 import styles from './page.module.css';
 
@@ -12,6 +14,23 @@ export default function Home() {
   const { prayers, nextPrayer, timeRemaining, currentDate, isLoading } = usePrayerTimes();
   const { isPrayerDone, togglePrayer, completedCount, totalCount } = usePrayerTracker();
   const { currentPage, markPageRead, quranComUrl } = useQuranProgress();
+  const { isSupported, permission, requestPermission, scheduleNotification } = useNotifications();
+
+  // Schedule notifications for upcoming prayers
+  useEffect(() => {
+    if (permission !== 'granted' || prayers.length === 0) return;
+
+    prayers.forEach((prayer) => {
+      // Only schedule for trackable prayers (not sunrise)
+      if (prayer.id === 'sunrise') return;
+
+      scheduleNotification(
+        `حان وقت صلاة ${prayer.nameAr}`,
+        { body: 'حي على الصلاة 🕌', tag: prayer.id },
+        prayer.time
+      );
+    });
+  }, [prayers, permission, scheduleNotification]);
 
   if (isLoading) {
     return (
@@ -34,6 +53,18 @@ export default function Home() {
         />
         <h1 className={styles.title}>أوقات الصلاة</h1>
         <p className={styles.subtitle}>إربد، الأردن</p>
+
+        {/* Notification Permission Button */}
+        {isSupported && permission !== 'granted' && (
+          <button
+            className="btn btn-secondary"
+            onClick={requestPermission}
+            style={{ marginTop: '0.5rem' }}
+          >
+            <Bell size={16} />
+            تفعيل الإشعارات
+          </button>
+        )}
       </header>
 
       {/* Next Prayer Card */}
