@@ -1,5 +1,5 @@
 {
-  "name": "prayer-times-pwa",
+  "name": "prayer-times",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "adhan": "^4.4.3",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
