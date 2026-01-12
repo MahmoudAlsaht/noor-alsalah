@@ -28,6 +28,7 @@ export interface AlarmSettings {
     isha: PrayerAlarmSettings;
     firstFajrOffset: number; // Minutes before true Fajr for first adhan
     playSound: boolean;
+    timeFormat: '12h' | '24h';
 }
 
 /**
@@ -42,6 +43,7 @@ const DEFAULT_SETTINGS: AlarmSettings = {
     isha: { enabled: true, timing: 'atTime', beforeEndMinutes: 15 },
     firstFajrOffset: 10, // 10 minutes before true Fajr
     playSound: true,
+    timeFormat: '12h',
 };
 
 const STORAGE_KEY = 'alarm-settings';
@@ -52,11 +54,12 @@ const STORAGE_KEY = 'alarm-settings';
 export interface UseAlarmSettingsReturn {
     settings: AlarmSettings;
     updatePrayerSetting: (
-        prayer: keyof Omit<AlarmSettings, 'firstFajrOffset' | 'playSound'>,
+        prayer: keyof Omit<AlarmSettings, 'firstFajrOffset' | 'playSound' | 'timeFormat'>,
         update: Partial<PrayerAlarmSettings>
     ) => void;
     setFirstFajrOffset: (minutes: number) => void;
     setPlaySound: (enabled: boolean) => void;
+    setTimeFormat: (format: '12h' | '24h') => void;
     resetToDefaults: () => void;
 }
 
@@ -104,7 +107,7 @@ export function useAlarmSettings(): UseAlarmSettingsReturn {
      */
     const updatePrayerSetting = useCallback(
         (
-            prayer: keyof Omit<AlarmSettings, 'firstFajrOffset' | 'playSound'>,
+            prayer: keyof Omit<AlarmSettings, 'firstFajrOffset' | 'playSound' | 'timeFormat'>,
             update: Partial<PrayerAlarmSettings>
         ) => {
             setSettings((prev) => ({
@@ -130,6 +133,13 @@ export function useAlarmSettings(): UseAlarmSettingsReturn {
     }, []);
 
     /**
+     * Set time format
+     */
+    const setTimeFormat = useCallback((format: '12h' | '24h') => {
+        setSettings((prev) => ({ ...prev, timeFormat: format }));
+    }, []);
+
+    /**
      * Reset to defaults
      */
     const resetToDefaults = useCallback(() => {
@@ -141,6 +151,7 @@ export function useAlarmSettings(): UseAlarmSettingsReturn {
         updatePrayerSetting,
         setFirstFajrOffset,
         setPlaySound,
+        setTimeFormat,
         resetToDefaults,
     };
 }

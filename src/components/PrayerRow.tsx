@@ -10,6 +10,7 @@ interface PrayerRowProps {
     isNext: boolean;
     currentTime: Date;
     onToggle: (prayerId: TrackablePrayer) => void;
+    readOnly?: boolean;
 }
 
 /**
@@ -19,12 +20,12 @@ interface PrayerRowProps {
  * Highlights the next prayer and shows strike-through when done.
  * Disables checkbox for prayers that haven't occurred yet.
  */
-export function PrayerRow({ prayer, isDone, isNext, currentTime, onToggle }: PrayerRowProps) {
+export function PrayerRow({ prayer, isDone, isNext, currentTime, onToggle, readOnly = false }: PrayerRowProps) {
     const isTrackable = TRACKABLE_PRAYERS.includes(prayer.id as TrackablePrayer);
 
-    // Prayer can only be marked as done if its time has passed
+    // Prayer can only be marked as done if its time has passed AND not readOnly
     const hasPrayerTimeOccurred = currentTime >= prayer.time;
-    const canMarkAsDone = isTrackable && hasPrayerTimeOccurred;
+    const canMarkAsDone = isTrackable && hasPrayerTimeOccurred && !readOnly;
 
     const handleCheckboxChange = () => {
         if (canMarkAsDone) {
@@ -41,10 +42,10 @@ export function PrayerRow({ prayer, isDone, isNext, currentTime, onToggle }: Pra
                 {isTrackable ? (
                     <input
                         type="checkbox"
-                        className={`checkbox-prayer ${!hasPrayerTimeOccurred ? styles.disabled : ''}`}
+                        className={`checkbox-prayer ${(!hasPrayerTimeOccurred || readOnly) ? styles.disabled : ''}`}
                         checked={isDone}
                         onChange={handleCheckboxChange}
-                        disabled={!hasPrayerTimeOccurred}
+                        disabled={!hasPrayerTimeOccurred || readOnly}
                         aria-label={`تم صلاة ${prayer.nameAr}`}
                     />
                 ) : (

@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { ArrowRight, Bell, Clock, Volume2 } from 'lucide-react';
+import { ArrowRight, Bell, Clock, Volume2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
 import { useAlarmSound, ALARM_SOUNDS } from '@/hooks/useAlarmSound';
+import { useAppUpdater } from '@/hooks/useAppUpdater';
 import { isNativeApp } from '@/lib/platform';
 import { DownloadAppSection } from '@/components/DownloadAppSection';
 import styles from './settings.module.css';
@@ -19,8 +20,9 @@ const PRAYER_LABELS: Record<string, string> = {
 };
 
 export default function SettingsPage() {
-    const { settings, updatePrayerSetting } = useAlarmSettings();
+    const { settings, updatePrayerSetting, setTimeFormat } = useAlarmSettings();
     const { selectedSound, setSelectedSound, setCustomSound, playAlarm, stopAlarm, isPlaying, hasCustomSound } = useAlarmSound();
+    const { isChecking, checkForUpdate } = useAppUpdater();
 
     const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
 
@@ -147,7 +149,7 @@ export default function SettingsPage() {
                     </div>
                 ) : (
                     <div className={styles.textSecondary} style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
-                        * الأصوات المخصصة غير متوفرة في التطبيق حالياً.
+                        {/* * الأصوات المخصصة غير متوفرة في التطبيق حالياً. */}
                     </div>
                 )}
 
@@ -158,6 +160,46 @@ export default function SettingsPage() {
                 >
                     {isPlaying ? 'إيقاف' : 'تجربة الصوت'}
                 </button>
+            </section>
+
+            {/* Time Format Settings */}
+            <section className={`card ${styles.section}`}>
+                <div className={styles.sectionHeader}>
+                    <Clock size={20} />
+                    <h2>تنسيق الوقت</h2>
+                </div>
+
+                <div className={styles.soundRow}>
+                    <label>نظام العرض:</label>
+                    <select
+                        value={settings.timeFormat}
+                        onChange={(e) => setTimeFormat(e.target.value as '12h' | '24h')}
+                        className={styles.select}
+                    >
+                        <option value="12h">12 ساعة (مسائي/صباحي)</option>
+                        <option value="24h">24 ساعة (13:00)</option>
+                    </select>
+                </div>
+            </section>
+
+            {/* Update Check */}
+            <section className={`card ${styles.section}`}>
+                <div className={styles.sectionHeader}>
+                    <ExternalLink size={20} />
+                    <h2>التحديثات</h2>
+                </div>
+                <div className={styles.soundRow}>
+                    <p style={{ fontSize: '0.9rem', color: '#94a3b8', margin: 0 }}>
+                        إبحث عن نسخة جديدة من التطبيق
+                    </p>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => checkForUpdate(true)}
+                        disabled={isChecking}
+                    >
+                        {isChecking ? 'جاري البحث...' : 'بحث الآن'}
+                    </button>
+                </div>
             </section>
             {/* ... other sections ... */}
 

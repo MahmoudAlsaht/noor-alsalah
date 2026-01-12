@@ -34,8 +34,6 @@ function AlarmContent() {
         }
     }, []);
 
-    if (!isNativeApp()) return null;
-
     const prayerId = searchParams.get('prayer') || 'fajr';
     const prayerName = PRAYER_NAMES[prayerId] || 'صلاة';
 
@@ -85,6 +83,8 @@ function AlarmContent() {
         }
         router.push('/');
     };
+
+    if (!isNativeApp()) return null;
 
     if (!isReady) {
         return (

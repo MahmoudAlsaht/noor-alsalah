@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Book, Clock, ExternalLink, Settings } from 'lucide-react';
-import { usePrayerTimes } from '@/hooks/usePrayerTimes';
+import { usePrayerTimes, getPrayersForDate } from '@/hooks/usePrayerTimes';
 import { usePrayerTracker } from '@/hooks/usePrayerTracker';
 import { useQuranProgress } from '@/hooks/useQuranProgress';
 import { useAlarmSound } from '@/hooks/useAlarmSound';
@@ -12,32 +12,52 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
 import { usePrayerReminder } from '@/hooks/usePrayerReminder';
 import { useWidgetSync } from '@/hooks/useWidgetSync'; // Import
-import { useAppUpdater } from '@/hooks/useAppUpdater'; // Import Updater
 import { isNativeApp } from '@/lib/platform'; // Import Platform Check
 import { PrayerRow } from '@/components/PrayerRow';
 import { DownloadAppSection } from '@/components/DownloadAppSection'; // Import
 import styles from './page.module.css';
 
 export default function Home() {
-  const { prayers, nextPrayer, timeRemaining, currentDate, isLoading } = usePrayerTimes();
+  const { settings } = useAlarmSettings();
+  const { prayers: todayPrayers, nextPrayer, timeRemaining, currentDate, isLoading } = usePrayerTimes({ format: settings.timeFormat });
   const { isPrayerDone, togglePrayer, completedCount, totalCount } = usePrayerTracker();
   const { currentPage, markPageRead, quranComUrl } = useQuranProgress();
   const { permission, scheduleNotification, cancelNotification } = useNotifications();
-  const { settings } = useAlarmSettings();
   const { selectedSound } = useAlarmSound();
 
-  // Sync data to native widget
-  useWidgetSync(prayers, currentDate.toLocaleDateString('ar-JO'), nextPrayer);
+  // Day Navigation State (-1: Yesterday, 0: Today, 1: Tomorrow)
+  // We can expand range if needed, but UI specified Yesterday/Tomorrow
+  const [dayOffset, setDayOffset] = useState(0);
 
-  // Check for updates automatically
-  useAppUpdater();
+  // Sync data to native widget (Always sync Today's data)
+  useWidgetSync(todayPrayers, currentDate.toLocaleDateString('ar-JO'), nextPrayer);
+
+  // Determine which prayers to show based on selected day
+  const displayedPrayers = dayOffset === 0
+    ? todayPrayers
+    : (() => {
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + dayOffset);
+      return getPrayersForDate(targetDate, settings.timeFormat);
+    })();
+
+  const getDayLabel = (offset: number) => {
+    if (offset === 0) return 'اليوم';
+    if (offset === 1) return 'غداً';
+    if (offset === -1) return 'أمس';
+    return '';
+  };
+
+  // Check for updates automatically logic (disabled)
 
   // Find current prayer (the one we're in now, not the next one)
   const getCurrentPrayer = () => {
     const now = new Date();
-    for (let i = prayers.length - 1; i >= 0; i--) {
-      if (prayers[i].time <= now && prayers[i].id !== 'sunrise') {
-        return prayers[i];
+    // Only relevant if we are calculating relative to *NOW*
+    // So we use todayPrayers always for logic
+    for (let i = todayPrayers.length - 1; i >= 0; i--) {
+      if (todayPrayers[i].time <= now && todayPrayers[i].id !== 'sunrise') {
+        return todayPrayers[i];
       }
     }
     return null;
@@ -63,7 +83,7 @@ export default function Home() {
     // BUT checking existing logic: scheduleNotification handles both. 
     // The issue might be the Permission Button in UI.
 
-    if (permission !== 'granted' || prayers.length === 0) return;
+    if (permission !== 'granted' || todayPrayers.length === 0) return;
 
     // Map sound ID to actual filename for Native
     // Note: These files must exist in android/app/src/main/res/raw/
@@ -74,7 +94,7 @@ export default function Home() {
     };
     const soundFile = soundMapping[selectedSound] || 'adhan.mp3';
 
-    prayers.forEach((prayer) => {
+    todayPrayers.forEach((prayer) => {
       // Only schedule for trackable prayers (not sunrise)
       if (prayer.id === 'sunrise') return;
 
@@ -104,7 +124,7 @@ export default function Home() {
         soundFile // Pass sound file
       );
     });
-  }, [prayers, permission, scheduleNotification, cancelNotification, isPrayerDone, settings, selectedSound]);
+  }, [todayPrayers, permission, scheduleNotification, cancelNotification, isPrayerDone, settings, selectedSound]);
 
   // Fix Hydration Mismatch
   const [isMounted, setIsMounted] = useState(false);
@@ -162,21 +182,42 @@ export default function Home() {
 
       {/* Prayer Times List */}
       <section className={`card ${styles.prayerList}`}>
-        <div className={styles.sectionHeader}>
-          <h3>مواعيد اليوم</h3>
-          <span className="text-secondary">
-            {completedCount}/{totalCount}
-          </span>
+        <div className={styles.sectionHeader} style={{ marginBottom: 0, paddingBottom: '1rem' }}>
+          <h3>مواقيت الصلاة</h3>
+          {/* Only show count if Today */
+            dayOffset === 0 && (
+              <span className="text-secondary">
+                {completedCount}/{totalCount}
+              </span>
+            )}
         </div>
+
+        {/* Date Navigation Tabs */}
+        <div className={styles.dateTabs} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+          {[-1, 0, 1].map((offset) => (
+            <button
+              key={offset}
+              className={`btn ${dayOffset === offset ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ flex: 1, padding: '0.5rem', fontSize: '0.9rem' }}
+              onClick={() => setDayOffset(offset)}
+            >
+              {getDayLabel(offset)}
+            </button>
+          ))}
+        </div>
+
         <div className={styles.prayerRows}>
-          {prayers.map((prayer) => (
+          {displayedPrayers.map((prayer) => (
             <PrayerRow
               key={prayer.id}
               prayer={prayer}
-              isDone={isPrayerDone(prayer.id)}
-              isNext={nextPrayer?.id === prayer.id}
+              // Only check 'done' status if we are viewing Today
+              isDone={dayOffset === 0 ? isPrayerDone(prayer.id) : false}
+              // Only highlight 'next' if we are viewing Today
+              isNext={dayOffset === 0 && nextPrayer?.id === prayer.id}
               currentTime={currentDate}
               onToggle={togglePrayer}
+              readOnly={dayOffset !== 0} // Disable interaction for non-today
             />
           ))}
         </div>

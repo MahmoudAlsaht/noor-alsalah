@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { App } from '@capacitor/app';
 import { Dialog } from '@capacitor/dialog';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -21,48 +21,61 @@ interface VersionInfo {
 export function useAppUpdater() {
     const [isChecking, setIsChecking] = useState(false);
 
-    useEffect(() => {
-        if (!isNativeApp()) return;
+    const checkForUpdate = async (manual: boolean = false) => {
+        if (!isNativeApp()) {
+            if (manual) alert('Updates are only for the native app');
+            return;
+        }
 
-        const checkForUpdate = async () => {
-            try {
-                setIsChecking(true);
+        try {
+            setIsChecking(true);
 
-                // 1. Get current app version
-                const appInfo = await App.getInfo();
-                const currentVersion = appInfo.version; // e.g., "0.1.0"
+            // 1. Get current app version
+            const appInfo = await App.getInfo();
+            const currentVersion = appInfo.version; // e.g., "0.1.0"
 
-                // 2. Fetch remote version info
-                // Use time param to bypass cache
-                const response = await fetch(`${UPDATE_HOST}/version.json?t=${Date.now()}`);
-                if (!response.ok) throw new Error('Failed to fetch update info');
+            // 2. Fetch remote version info
+            // Use time param to bypass cache
+            const response = await fetch(`${UPDATE_HOST}/version.json?t=${Date.now()}`);
+            if (!response.ok) throw new Error('Failed to fetch update info');
 
-                const remoteInfo: VersionInfo = await response.json();
+            const remoteInfo: VersionInfo = await response.json();
 
-                // 3. Compare versions
-                if (shouldUpdate(currentVersion, remoteInfo.version)) {
-                    // 4. Prompt user
-                    const { value: confirmed } = await Dialog.confirm({
-                        title: 'تحديث جديد متوفر 🚀',
-                        message: `إصدار جديد ${remoteInfo.version} متاح.\n\nالجديد: ${remoteInfo.releaseNote}\n\nهل تريد التحميل والتثبيت الآن؟`,
-                        okButtonTitle: 'نعم، حدث الآن',
-                        cancelButtonTitle: 'لاحقاً'
-                    });
+            // 3. Compare versions
+            if (shouldUpdate(currentVersion, remoteInfo.version)) {
+                // 4. Prompt user
+                const { value: confirmed } = await Dialog.confirm({
+                    title: 'تحديث جديد متوفر 🚀',
+                    message: `إصدار جديد ${remoteInfo.version} متاح.\n\nالجديد: ${remoteInfo.releaseNote}\n\nهل تريد التحميل والتثبيت الآن؟`,
+                    okButtonTitle: 'نعم، حدث الآن',
+                    cancelButtonTitle: 'لاحقاً'
+                });
 
-                    if (confirmed) {
-                        await downloadAndInstall(remoteInfo.downloadUrl);
-                    }
+                if (confirmed) {
+                    await downloadAndInstall(remoteInfo.downloadUrl);
                 }
-
-            } catch (error) {
-                console.error('Update check failed:', error);
-            } finally {
-                setIsChecking(false);
+            } else if (manual) {
+                // 5. Notify if manual check and no update
+                await Dialog.alert({
+                    title: 'أنت محدث ✅',
+                    message: `لديك آخر إصدار (${currentVersion}).`,
+                    buttonTitle: 'حسناً'
+                });
             }
-        };
 
-        checkForUpdate();
-    }, []);
+        } catch (error) {
+            console.error('Update check failed:', error);
+            if (manual) {
+                await Dialog.alert({
+                    title: 'خطأ',
+                    message: 'فشل التحقق من التحديثات. تأكد من الإنترنت.',
+                    buttonTitle: 'حسناً'
+                });
+            }
+        } finally {
+            setIsChecking(false);
+        }
+    };
 
     const downloadAndInstall = async (paramsUrl: string) => {
         try {
@@ -108,5 +121,5 @@ export function useAppUpdater() {
         return false;
     };
 
-    return { isChecking };
+    return { isChecking, checkForUpdate };
 }

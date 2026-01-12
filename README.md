@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Noor Al-Salah (نور الصلاة)
 
-## Getting Started
+تطبيق مواقيت صلاة عائلي بسيط وجميل، مصمم لتلبية احتياجات المستخدمين في الأردن (إربد) مع دعم التنبيهات والويدجت وأذكار الصباح والمساء.
 
-First, run the development server:
+## المميزات الرئيسية
+*   **مواقيت دقيقة:** حساب أوقات الصلاة بناءً على الطريقة الأردنية (وزارة الأوقاف).
+*   **تنبيهات مخصصة:** إمكانية تفعيل/تعطيل التنبيه لكل صلاة، واختيار وقت التنبيه (موعد الصلاة، قبل الإقامة، إلخ).
+*   **ختمة القرآن:** متابعة التقدم في قراءة القرآن الكريم.
+*   **أذكار:** عرض أذكار الصباح والمساء في أوقاتها المناسبة.
+*   **التشغيل التلقائي:** تشغيل صوت الأذان تلقائياً (Native Audio).
+*   **الويدجت (Widget):** عرض أوقات الصلاة الحالية والقادمة على الشاشة الرئيسية (Beta).
 
+## المشاكل المعروفة (Known Issues)
+*   **بيانات الويدجت (Widget Data Sync):** في بعض أجهزة الأندرويد، قد لا يتم تحديث بيانات الويدجت بشكل فوري أو قد تظهر رسالة "افتح التطبيق" حتى بعد فتح التطبيق. يرجع ذلك لقيود النظام في قراءة البيانات المشتركة (Shared Preferences) في بعض الإصدارات.
+    *   *الحل المؤقت:* افتح التطبيق، ثم احذف الويدجت وأضفه مرة أخرى.
+
+## التطوير (Development)
+
+### المتطلبات
+*   Node.js & npm
+*   Android Studio (لبناء نسخة الأندرويد)
+*   Capacitor CLI
+
+### أوامر مفيدة
 ```bash
+# تشغيل نسخة الويب
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# بناء نسخة الويب
+npm run build
+
+# نسخ الملفات إلى مشروع الأندرويد
+npm run build:android (alias for build + cap sync)
+
+# فحص الأكواد
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## التقنيات المستخدمة
+*   Next.js 14+ (App Router)
+*   React Native / Capacitor (لتحويل الويب لتطبيق أصلي)
+*   Tailwind CSS (Styling)
+*   Adhan.js (مكتبة حساب المواقيت)
