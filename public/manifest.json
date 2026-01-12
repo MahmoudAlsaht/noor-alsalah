@@ -1,7 +1,7 @@
 {
-    "name": "أوقات الصلاة",
-    "short_name": "الصلاة",
-    "description": "تطبيق مواعيد الصلاة الدقيقة - إربد، الأردن",
+    "name": "نور الصلاة",
+    "short_name": "نور الصلاة",
+    "description": "نور الصلاة - تطبيق مواعيد الصلاة الدقيقة لإربد، الأردن",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#020617",

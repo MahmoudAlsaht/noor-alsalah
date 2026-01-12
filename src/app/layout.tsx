@@ -9,15 +9,15 @@ const notoKufiArabic = Noto_Kufi_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "أوقات الصلاة | إربد",
-  description: "تطبيق مواعيد الصلاة الدقيقة لمدينة إربد - الأردن. مطابق لوزارة الأوقاف الأردنية.",
-  keywords: ["مواعيد الصلاة", "إربد", "الأردن", "صلاة", "أوقات الصلاة", "prayer times"],
+  title: "نور الصلاة",
+  description: "نور الصلاة - تطبيق مواعيد الصلاة الدقيقة لمدينة إربد. مطابق لوزارة الأوقاف الأردنية.",
+  keywords: ["نور الصلاة", "مواعيد الصلاة", "إربد", "الأردن", "صلاة", "أوقات الصلاة", "prayer times"],
   authors: [{ name: "MahmoudAlsaht" }],
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "أوقات الصلاة",
+    title: "نور الصلاة",
   },
   icons: {
     icon: "/icon-512x512.png",

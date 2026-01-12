@@ -187,3 +187,43 @@
     border-top: 1px solid var(--color-border);
     margin-top: var(--spacing-sm);
 }
+
+/* File Upload */
+.uploadRow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: var(--spacing-sm) 0;
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--spacing-sm);
+}
+
+.uploadRow label {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+}
+
+.fileInput {
+    padding: 0.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    color: var(--foreground);
+    font-size: 0.875rem;
+}
+
+.fileInput::file-selector-button {
+    padding: 0.5rem 1rem;
+    margin-left: 0.5rem;
+    background: var(--accent);
+    color: var(--color-midnight);
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.uploadStatus {
+    font-size: 0.875rem;
+    color: var(--accent);
+}

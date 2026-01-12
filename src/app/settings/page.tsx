@@ -16,10 +16,10 @@ const PRAYER_LABELS: Record<string, string> = {
 };
 
 export default function SettingsPage() {
-    const { settings, updatePrayerSetting, setFirstFajrOffset, setPlaySound } = useAlarmSettings();
-    const { selectedSound, setSelectedSound, playAlarm, stopAlarm, isPlaying } = useAlarmSound();
+    const { settings, updatePrayerSetting } = useAlarmSettings();
+    const { selectedSound, setSelectedSound, setCustomSound, playAlarm, stopAlarm, isPlaying, hasCustomSound } = useAlarmSound();
 
-    const prayers = ['fajr', 'fajrFirst', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
+    const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
 
     return (
         <div className={styles.container}>
@@ -42,11 +42,6 @@ export default function SettingsPage() {
                     <div key={prayer} className={styles.prayerRow}>
                         <div className={styles.prayerInfo}>
                             <span className={styles.prayerName}>{PRAYER_LABELS[prayer]}</span>
-                            {prayer === 'fajrFirst' && (
-                                <span className={styles.prayerNote}>
-                                    {settings.firstFajrOffset} دقيقة قبل الفجر
-                                </span>
-                            )}
                         </div>
 
                         <div className={styles.prayerControls}>
@@ -64,21 +59,6 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 ))}
-
-                {/* First Fajr Offset */}
-                <div className={styles.offsetRow}>
-                    <label>وقت الأذان الأول (قبل الفجر):</label>
-                    <select
-                        value={settings.firstFajrOffset}
-                        onChange={(e) => setFirstFajrOffset(Number(e.target.value))}
-                        className={styles.select}
-                    >
-                        <option value={5}>5 دقائق</option>
-                        <option value={10}>10 دقائق</option>
-                        <option value={15}>15 دقائق</option>
-                        <option value={20}>20 دقائق</option>
-                    </select>
-                </div>
             </section>
 
             {/* Timing Options */}
@@ -91,7 +71,7 @@ export default function SettingsPage() {
                     اختر متى تريد التنبيه لكل صلاة: وقت الدخول، قبل الخروج، أو كلاهما.
                 </p>
 
-                {prayers.filter((p) => p !== 'fajrFirst').map((prayer) => (
+                {prayers.map((prayer) => (
                     <div key={prayer} className={styles.timingRow}>
                         <span>{PRAYER_LABELS[prayer]}</span>
                         <select
@@ -125,12 +105,31 @@ export default function SettingsPage() {
                         onChange={(e) => setSelectedSound(e.target.value as typeof selectedSound)}
                         className={styles.select}
                     >
-                        {ALARM_SOUNDS.map((sound) => (
-                            <option key={sound.id} value={sound.id}>
-                                {sound.name}
-                            </option>
-                        ))}
+                        {ALARM_SOUNDS
+                            .filter((sound) => sound.id !== 'custom' || hasCustomSound)
+                            .map((sound) => (
+                                <option key={sound.id} value={sound.id}>
+                                    {sound.name}
+                                </option>
+                            ))}
                     </select>
+                </div>
+
+                {/* Custom Sound Upload */}
+                <div className={styles.uploadRow}>
+                    <label>رفع صوت مخصص:</label>
+                    <input
+                        type="file"
+                        accept="audio/*"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                                setCustomSound(file);
+                            }
+                        }}
+                        className={styles.fileInput}
+                    />
+                    {hasCustomSound && <span className={styles.uploadStatus}>✅ تم رفع صوت مخصص</span>}
                 </div>
 
                 <button
@@ -140,18 +139,6 @@ export default function SettingsPage() {
                 >
                     {isPlaying ? 'إيقاف' : 'تجربة الصوت'}
                 </button>
-
-                <div className={styles.toggleRow}>
-                    <span>تشغيل الصوت</span>
-                    <label className={styles.toggle}>
-                        <input
-                            type="checkbox"
-                            checked={settings.playSound}
-                            onChange={(e) => setPlaySound(e.target.checked)}
-                        />
-                        <span className={styles.toggleSlider}></span>
-                    </label>
-                </div>
             </section>
         </div>
     );

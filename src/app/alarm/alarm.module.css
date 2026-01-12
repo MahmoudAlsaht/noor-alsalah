@@ -1,0 +1,121 @@
+.container {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-midnight);
+    z-index: 9999;
+    overflow: hidden;
+}
+
+/* Animated Glow Background */
+.glow {
+    position: absolute;
+    width: 150%;
+    height: 150%;
+    background: radial-gradient(circle at 50% 50%,
+            rgba(251, 191, 36, 0.3) 0%,
+            rgba(45, 212, 191, 0.1) 30%,
+            transparent 60%);
+    animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.6;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+/* Content */
+.content {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.label {
+    font-size: 1.5rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.prayerName {
+    font-size: 4rem;
+    font-weight: 700;
+    color: var(--highlight);
+    margin: 0;
+    text-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
+}
+
+.time {
+    font-size: 2rem;
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+}
+
+/* Stop Button */
+.stopBtn {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.5rem 3rem;
+    background: rgba(239, 68, 68, 0.2);
+    border: 2px solid rgba(239, 68, 68, 0.5);
+    border-radius: 1rem;
+    color: #ef4444;
+    font-size: 1.25rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.stopBtn:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: #ef4444;
+    transform: scale(1.05);
+}
+
+.stopBtn:active {
+    transform: scale(0.95);
+}
+
+/* Islamic Pattern Overlay */
+.pattern {
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M30 0L60 30L30 60L0 30L30 0z' fill='none' stroke='%23fbbf24' stroke-width='0.3' opacity='0.1'/%3E%3C/svg%3E");
+    background-size: 60px 60px;
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+    .prayerName {
+        font-size: 3rem;
+    }
+
+    .time {
+        font-size: 1.5rem;
+    }
+
+    .label {
+        font-size: 1.25rem;
+    }
+}

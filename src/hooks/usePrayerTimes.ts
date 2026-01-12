@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     PrayerTimes,
-    CalculationMethod,
     CalculationParameters,
     Coordinates,
     Prayer,
 } from 'adhan';
-import { format, differenceInSeconds } from 'date-fns';
+import { differenceInSeconds } from 'date-fns';
 
 /**
  * Prayer names in Arabic for display
@@ -96,7 +95,7 @@ function formatCountdown(totalSeconds: number): string {
  */
 export function usePrayerTimes(): UsePrayerTimesReturn {
     const [currentDate, setCurrentDate] = useState(() => new Date());
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading] = useState(false); // Ready immediately
 
     // Update current date every second for countdown
     useEffect(() => {
@@ -104,14 +103,13 @@ export function usePrayerTimes(): UsePrayerTimesReturn {
             setCurrentDate(new Date());
         }, 1000);
 
-        setIsLoading(false);
         return () => clearInterval(interval);
     }, []);
 
-    // Calculate prayer times for today
+    // Calculate prayer times for today (recalc when date changes)
     const prayerTimes = useMemo(() => {
         return new PrayerTimes(IRBID_COORDINATES, currentDate, JORDAN_METHOD);
-    }, [currentDate.toDateString()]); // Only recalc on date change
+    }, [currentDate]);
 
     // Format prayers into array
     const prayers: PrayerTimeEntry[] = useMemo(() => {
@@ -139,7 +137,6 @@ export function usePrayerTimes(): UsePrayerTimesReturn {
 
     // Find next prayer
     const nextPrayer = useMemo(() => {
-        const current = prayerTimes.currentPrayer();
         const next = prayerTimes.nextPrayer();
 
         // If it's after Isha, next prayer is Fajr tomorrow (handled by adhan)
@@ -150,7 +147,7 @@ export function usePrayerTimes(): UsePrayerTimesReturn {
 
         const nextId = next.toString().toLowerCase();
         return prayers.find((p) => p.id === nextId) || null;
-    }, [prayers, prayerTimes, currentDate]);
+    }, [prayers, prayerTimes]);
 
     // Calculate time remaining
     const timeRemaining = useMemo(() => {

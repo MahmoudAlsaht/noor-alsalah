@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 /**
- * Scheduled notification info
+ * Scheduled notification data
  */
 interface ScheduledNotification {
-    timeoutId: ReturnType<typeof setTimeout>;
     prayerId: string;
     type: 'atTime' | 'beforeEnd';
+    timeoutId: ReturnType<typeof setTimeout>;
 }
 
 /**
@@ -17,16 +17,27 @@ interface ScheduledNotification {
 export interface UseNotificationsReturn {
     isSupported: boolean;
     permission: NotificationPermission | 'unsupported';
-    requestPermission: () => Promise<boolean>;
-    sendNotification: (title: string, options?: NotificationOptions) => void;
+    requestPermission: () => Promise<void>;
+    sendNotification: (title: string, options?: NotificationOptions & { persistent?: boolean }) => void;
     scheduleNotification: (
         title: string,
         options: NotificationOptions,
-        date: Date,
+        time: Date,
         prayerId: string,
-        type: 'atTime' | 'beforeEnd'
+        type?: 'atTime' | 'beforeEnd',
+        onFire?: () => void
     ) => void;
     cancelNotification: (prayerId: string, type?: 'atTime' | 'beforeEnd') => void;
+}
+
+/**
+ * Check notification support (for lazy init)
+ */
+function checkNotificationSupport(): { supported: boolean; perm: NotificationPermission | 'unsupported' } {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+        return { supported: true, perm: Notification.permission };
+    }
+    return { supported: false, perm: 'unsupported' };
 }
 
 /**
@@ -36,61 +47,46 @@ export interface UseNotificationsReturn {
  * Supports cancelling notifications (e.g., when prayer is marked done).
  */
 export function useNotifications(): UseNotificationsReturn {
-    const [isSupported, setIsSupported] = useState(false);
-    const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('unsupported');
+    // Lazy initialization
+    const [isSupported] = useState(() => checkNotificationSupport().supported);
+    const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => checkNotificationSupport().perm);
     const scheduledRef = useRef<ScheduledNotification[]>([]);
-
-    // Check support on mount
-    useEffect(() => {
-        if (typeof window !== 'undefined' && 'Notification' in window) {
-            setIsSupported(true);
-            setPermission(Notification.permission);
-        }
-    }, []);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            scheduledRef.current.forEach((n) => clearTimeout(n.timeoutId));
-        };
-    }, []);
 
     /**
      * Request notification permission
      */
-    const requestPermission = useCallback(async (): Promise<boolean> => {
-        if (!isSupported) return false;
-
+    const requestPermission = useCallback(async () => {
+        if (!isSupported) return;
         try {
             const result = await Notification.requestPermission();
             setPermission(result);
-            return result === 'granted';
         } catch {
-            return false;
+            console.error('Failed to request notification permission');
         }
     }, [isSupported]);
 
     /**
      * Send immediate notification
+     * @param persistent - If true, notification stays on lock screen until user interacts
      */
     const sendNotification = useCallback(
-        (title: string, options?: NotificationOptions) => {
+        (title: string, options?: NotificationOptions & { persistent?: boolean }) => {
             if (!isSupported || permission !== 'granted') return;
+
+            const notificationOptions: NotificationOptions = {
+                icon: '/icon-192x192.png',
+                badge: '/icon-192x192.png',
+                requireInteraction: options?.persistent ?? false,
+                ...options,
+            };
 
             // Use Service Worker registration if available for better PWA support
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.ready.then((registration) => {
-                    registration.showNotification(title, {
-                        icon: '/icon-192x192.png',
-                        badge: '/icon-192x192.png',
-                        ...options,
-                    });
+                    registration.showNotification(title, notificationOptions);
                 });
             } else {
-                new Notification(title, {
-                    icon: '/icon-192x192.png',
-                    ...options,
-                });
+                new Notification(title, notificationOptions);
             }
         },
         [isSupported, permission]
@@ -100,14 +96,14 @@ export function useNotifications(): UseNotificationsReturn {
      * Cancel a scheduled notification
      */
     const cancelNotification = useCallback(
-        (prayerId: string, type?: 'atTime' | 'beforeEnd') => {
-            scheduledRef.current = scheduledRef.current.filter((n) => {
-                if (n.prayerId === prayerId && (type === undefined || n.type === type)) {
-                    clearTimeout(n.timeoutId);
-                    return false;
-                }
-                return true;
-            });
+        (prayerId: string, type: 'atTime' | 'beforeEnd' = 'atTime') => {
+            const index = scheduledRef.current.findIndex(
+                (n) => n.prayerId === prayerId && n.type === type
+            );
+            if (index !== -1) {
+                clearTimeout(scheduledRef.current[index].timeoutId);
+                scheduledRef.current.splice(index, 1);
+            }
         },
         []
     );
@@ -119,30 +115,32 @@ export function useNotifications(): UseNotificationsReturn {
         (
             title: string,
             options: NotificationOptions,
-            date: Date,
+            time: Date,
             prayerId: string,
-            type: 'atTime' | 'beforeEnd'
+            type: 'atTime' | 'beforeEnd' = 'atTime',
+            onFire?: () => void
         ) => {
-            const now = new Date();
-            const delay = date.getTime() - now.getTime();
+            if (!isSupported || permission !== 'granted') return;
 
-            if (delay <= 0) return; // Time has passed
-
-            // Cancel any existing notification with same prayerId and type
+            // Cancel any existing notification for this prayer/type
             cancelNotification(prayerId, type);
 
-            // Schedule new notification
+            const delay = time.getTime() - Date.now();
+            if (delay <= 0) return; // Don't schedule past notifications
+
             const timeoutId = setTimeout(() => {
                 sendNotification(title, options);
+                // Call the onFire callback (e.g., to play alarm sound)
+                if (onFire) onFire();
                 // Remove from scheduled list after firing
                 scheduledRef.current = scheduledRef.current.filter(
                     (n) => n.prayerId !== prayerId || n.type !== type
                 );
             }, delay);
 
-            scheduledRef.current.push({ timeoutId, prayerId, type });
+            scheduledRef.current.push({ prayerId, type, timeoutId });
         },
-        [sendNotification, cancelNotification]
+        [isSupported, permission, cancelNotification, sendNotification]
     );
 
     return {

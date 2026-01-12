@@ -1,17 +1,32 @@
-# Project Roadmap
+# نور الصلاة - خارطة الطريق
 
-## Phase 1: Core Foundation (Current)
-- [ ] **Accurate Calculation**: Implement `adhan` with Jordan method.
-- [ ] **Countdown Timer**: "Time remaining" logic.
-- [ ] **Responsive UI**: Clean Mobile/Desktop layout.
+## المرحلة 1: الأساسيات ✅
+- أوقات صلاة دقيقة
+- تتبع الصلوات
+- ورد القرآن
+- PWA
 
-## Phase 2: Worship Tools
-- [ ] **Prayer Tracker**: Local tracking of performed prayers.
-- [ ] **Quran Helper**: Suggest next page based on "Verd".
-- [ ] **Smart Notifications**: Browser notifications for prayer times.
+## المرحلة 2: الإشعارات ✅
+- إشعار عند دخول الصلاة
+- منبه شاشة كاملة
+- صوت مخصص
+- إعدادات لكل صلاة
 
-## Phase 3: Enhancements (Suggested)
-- [ ] **Hijri Date**: Display accurate Hijri date.
-- [ ] **Auto-Location**: Optional feature to detect city (Privacy focused).
-- [ ] **Zikr Suggestions**: Show a short Athkar after marking prayer as done.
-- [ ] **Missed Prayer Stats**: Weekly summary of prayer commitment.
+## المرحلة 3: التنبيهات الذكية ✅
+- Badge نقطة حمراء
+- Persistent Notification
+- تحذير الصلاة الفائتة
+
+## المرحلة 4: التحفيز (قادم)
+- Streak Counter
+- إنجازات
+- إحصائيات
+
+## المرحلة 5: العائلة (قادم)
+- ملفات شخصية متعددة
+- مشاركة الإحصائيات
+
+## المرحلة 6: Native (مستقبلي)
+- React Native / Flutter
+- Widgets
+- المنبه الكامل

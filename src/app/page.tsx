@@ -4,10 +4,12 @@ import { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Book, Clock, ExternalLink, Bell, Settings } from 'lucide-react';
-import { usePrayerTimes, PRAYER_NAMES } from '@/hooks/usePrayerTimes';
+import { usePrayerTimes } from '@/hooks/usePrayerTimes';
 import { usePrayerTracker } from '@/hooks/usePrayerTracker';
 import { useQuranProgress } from '@/hooks/useQuranProgress';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useAlarmSettings } from '@/hooks/useAlarmSettings';
+import { usePrayerReminder } from '@/hooks/usePrayerReminder';
 import { PrayerRow } from '@/components/PrayerRow';
 import styles from './page.module.css';
 
@@ -16,6 +18,28 @@ export default function Home() {
   const { isPrayerDone, togglePrayer, completedCount, totalCount } = usePrayerTracker();
   const { currentPage, markPageRead, quranComUrl } = useQuranProgress();
   const { isSupported, permission, requestPermission, scheduleNotification, cancelNotification } = useNotifications();
+  const { settings } = useAlarmSettings();
+
+  // Find current prayer (the one we're in now, not the next one)
+  const getCurrentPrayer = () => {
+    const now = new Date();
+    for (let i = prayers.length - 1; i >= 0; i--) {
+      if (prayers[i].time <= now && prayers[i].id !== 'sunrise') {
+        return prayers[i];
+      }
+    }
+    return null;
+  };
+  const currentPrayer = getCurrentPrayer();
+
+  // Smart badge + persistent notification
+  usePrayerReminder({
+    currentPrayer: currentPrayer ? { id: currentPrayer.id, nameAr: currentPrayer.nameAr, time: currentPrayer.time } : null,
+    nextPrayer: nextPrayer ? { id: nextPrayer.id, nameAr: nextPrayer.nameAr, time: nextPrayer.time } : null,
+    timeRemaining,
+    isPrayerDone,
+    notificationPermission: permission,
+  });
 
   // Schedule notifications for upcoming prayers
   useEffect(() => {
@@ -31,15 +55,26 @@ export default function Home() {
         return;
       }
 
+      // Check if this prayer's alarm is enabled
+      const prayerSettings = settings[prayer.id as keyof typeof settings];
+      if (typeof prayerSettings === 'object' && !prayerSettings.enabled) return;
+
+      // Callback when notification fires: open alarm page (page handles sound)
+      const onFireCallback = () => {
+        // Redirect to full-screen alarm page (it handles audio)
+        window.location.href = `/alarm?prayer=${prayer.id}`;
+      };
+
       scheduleNotification(
         `حان وقت صلاة ${prayer.nameAr}`,
         { body: 'حي على الصلاة 🕌', tag: prayer.id },
         prayer.time,
         prayer.id,
-        'atTime'
+        'atTime',
+        onFireCallback
       );
     });
-  }, [prayers, permission, scheduleNotification, cancelNotification, isPrayerDone]);
+  }, [prayers, permission, scheduleNotification, cancelNotification, isPrayerDone, settings]);
 
   if (isLoading) {
     return (

@@ -26,28 +26,33 @@ export interface UseQuranProgressReturn {
 }
 
 /**
+ * Load page from localStorage (for lazy init)
+ */
+function loadPage(): number {
+    if (typeof window === 'undefined') return 1;
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            const page = parseInt(stored, 10);
+            if (page >= 1 && page <= TOTAL_QURAN_PAGES) {
+                return page;
+            }
+        }
+    } catch {
+        // Ignore errors
+    }
+    return 1;
+}
+
+/**
  * useQuranProgress Hook
  * 
  * Tracks Quran reading progress by page number.
  * Provides link to quran.com for the current page.
  */
 export function useQuranProgress(): UseQuranProgressReturn {
-    const [currentPage, setCurrentPage] = useState(1);
-
-    // Load from localStorage on mount
-    useEffect(() => {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                const page = parseInt(stored, 10);
-                if (page >= 1 && page <= TOTAL_QURAN_PAGES) {
-                    setCurrentPage(page);
-                }
-            }
-        } catch {
-            // Ignore errors
-        }
-    }, []);
+    // Lazy initialization from localStorage
+    const [currentPage, setCurrentPage] = useState<number>(() => loadPage());
 
     // Save to localStorage when page changes
     useEffect(() => {

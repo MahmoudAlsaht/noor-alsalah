@@ -36,25 +36,30 @@ function getTodayKey(): string {
 }
 
 /**
+ * Load prayers from localStorage (for lazy init)
+ */
+function loadPrayers(): PrayerRecord {
+    if (typeof window === 'undefined') return {};
+    try {
+        const stored = localStorage.getItem(getTodayKey());
+        if (stored) {
+            return JSON.parse(stored);
+        }
+    } catch {
+        // Ignore parse errors
+    }
+    return {};
+}
+
+/**
  * usePrayerTracker Hook
  * 
  * Tracks which prayers have been performed today.
  * Persists to localStorage with date-based keys.
  */
 export function usePrayerTracker(): UsePrayerTrackerReturn {
-    const [prayersDone, setPrayersDone] = useState<PrayerRecord>({});
-
-    // Load from localStorage on mount
-    useEffect(() => {
-        try {
-            const stored = localStorage.getItem(getTodayKey());
-            if (stored) {
-                setPrayersDone(JSON.parse(stored));
-            }
-        } catch {
-            // Ignore parse errors
-        }
-    }, []);
+    // Lazy initialization from localStorage
+    const [prayersDone, setPrayersDone] = useState<PrayerRecord>(() => loadPrayers());
 
     // Save to localStorage when state changes
     useEffect(() => {
