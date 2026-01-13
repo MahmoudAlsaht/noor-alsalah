@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { App } from '@capacitor/app';
 import { Dialog } from '@capacitor/dialog';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -20,6 +20,17 @@ interface VersionInfo {
 
 export function useAppUpdater() {
     const [isChecking, setIsChecking] = useState(false);
+    const [currentVersion, setCurrentVersion] = useState<string>(''); // Dynamic version
+
+    useEffect(() => {
+        if (isNativeApp()) {
+            App.getInfo().then(info => {
+                setCurrentVersion(info.version);
+            }).catch(err => {
+                console.error('Failed to get app info', err);
+            });
+        }
+    }, []);
 
     const checkForUpdate = async (manual: boolean = false) => {
         if (!isNativeApp()) {
@@ -32,7 +43,8 @@ export function useAppUpdater() {
 
             // 1. Get current app version
             const appInfo = await App.getInfo();
-            const currentVersion = appInfo.version; // e.g., "0.1.0"
+            const installedVersion = appInfo.version; // e.g., "0.1.0"
+            setCurrentVersion(installedVersion); // Ensure it's syncing
 
             // 2. Fetch remote version info
             // Use time param to bypass cache
@@ -42,7 +54,7 @@ export function useAppUpdater() {
             const remoteInfo: VersionInfo = await response.json();
 
             // 3. Compare versions
-            if (shouldUpdate(currentVersion, remoteInfo.version)) {
+            if (shouldUpdate(installedVersion, remoteInfo.version)) {
                 // 4. Prompt user
                 const { value: confirmed } = await Dialog.confirm({
                     title: 'تحديث جديد متوفر 🚀',
@@ -58,7 +70,7 @@ export function useAppUpdater() {
                 // 5. Notify if manual check and no update
                 await Dialog.alert({
                     title: 'أنت محدث ✅',
-                    message: `لديك آخر إصدار (${currentVersion}).`,
+                    message: `لديك آخر إصدار (${installedVersion}).`,
                     buttonTitle: 'حسناً'
                 });
             }
@@ -121,5 +133,5 @@ export function useAppUpdater() {
         return false;
     };
 
-    return { isChecking, checkForUpdate };
+    return { isChecking, checkForUpdate, currentVersion };
 }

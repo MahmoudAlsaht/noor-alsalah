@@ -22,7 +22,7 @@ const PRAYER_LABELS: Record<string, string> = {
 export default function SettingsPage() {
     const { settings, updatePrayerSetting, setTimeFormat } = useAlarmSettings();
     const { selectedSound, setSelectedSound, playAlarm, stopAlarm, isPlaying, hasCustomSound } = useAlarmSound();
-    const { isChecking, checkForUpdate } = useAppUpdater();
+    const { isChecking, checkForUpdate, currentVersion } = useAppUpdater();
 
     const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
 
@@ -200,7 +200,7 @@ export default function SettingsPage() {
             </section>
             {/* App Version Info */}
             <p className="text-secondary" style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem' }}>
-                إصدار التطبيق: 0.1.16
+                إصدار التطبيق: {currentVersion || '...'}
             </p>
         </div>
     );

@@ -1,6 +1,6 @@
 {
-    "version": "0.1.20",
-    "build": 21,
-    "releaseNote": "إصلاحات في أصوات التنبيهات وإضافة صفحة اختبار.",
+    "version": "0.1.21",
+    "build": 22,
+    "releaseNote": "إصلاح مشكلة عرض رقم الإصدار في الإعدادات.",
     "downloadUrl": "https://github.com/MahmoudAlsaht/noor-alsalah/releases/latest/download/noor-alsalah.apk"
 }
