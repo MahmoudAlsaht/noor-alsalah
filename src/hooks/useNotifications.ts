@@ -262,6 +262,23 @@ export function useNotifications(): UseNotificationsReturn {
                 if (permission !== 'granted') return;
                 const timeoutId = setTimeout(() => {
                     sendNotification(title, options);
+
+                    // Manually play sound for Web
+                    if (sound) {
+                        // Our files are in public/sounds/ 
+                        // Our files are in public/sounds/ or just root?
+                        // Native raw files are: adhan.mp3, alert.mp3, gentle.mp3
+                        // We need these in public/ folder for web to play them.
+                        // Assuming they are mapped.
+                        let webSoundUrl = '/sounds/alarm-default.mp3';
+                        if (sound.includes('adhan')) webSoundUrl = '/sounds/adhan.mp3'; // Need to ensure file exists
+                        else if (sound.includes('gentle')) webSoundUrl = '/sounds/gentle.mp3';
+                        else if (sound.includes('alert')) webSoundUrl = '/sounds/alert.mp3';
+
+                        const audio = new Audio(webSoundUrl);
+                        audio.play().catch(e => console.warn('Expected web audio play error (interaction disallowed):', e));
+                    }
+
                     if (onFire) onFire();
                     scheduledRef.current = scheduledRef.current.filter(
                         (n) => n.prayerId !== prayerId || n.type !== type
