@@ -11,10 +11,11 @@ import { useAlarmSound } from '@/hooks/useAlarmSound';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
 import { usePrayerReminder } from '@/hooks/usePrayerReminder';
-// import { useWidgetSync } from '@/hooks/useWidgetSync'; // Disabled for now
+import { useWidgetSync } from '@/hooks/useWidgetSync'; // Enabled
 import { isNativeApp } from '@/lib/platform'; // Import Platform Check
 import { PrayerRow } from '@/components/PrayerRow';
 import { DownloadAppSection } from '@/components/DownloadAppSection'; // Import
+import { OnboardingWizard } from '@/components/OnboardingWizard';
 import styles from './page.module.css';
 
 export default function Home() {
@@ -29,8 +30,8 @@ export default function Home() {
   // We can expand range if needed, but UI specified Yesterday/Tomorrow
   const [dayOffset, setDayOffset] = useState(0);
 
-  // Sync data to native widget - DISABLED FOR NOW
-  // useWidgetSync(todayPrayers, currentDate.toLocaleDateString('ar-JO'), nextPrayer);
+  // Sync data to native widget - ENABLED
+  useWidgetSync(todayPrayers, currentDate.toLocaleDateString('ar-JO'), nextPrayer);
 
   // Determine which prayers to show based on selected day
   const displayedPrayers = dayOffset === 0
@@ -232,6 +233,8 @@ export default function Home() {
 
         {/* Download App Section */}
         <DownloadAppSection />
+
+        <OnboardingWizard />
       </div>
     );
   }
@@ -336,7 +339,8 @@ export default function Home() {
           </button>
         </div>
       </section>
-    </div>
+
+      <OnboardingWizard />
+    </div >
   );
 }
-

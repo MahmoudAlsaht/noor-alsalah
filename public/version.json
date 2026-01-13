@@ -1,6 +1,6 @@
 {
-    "version": "0.1.16",
-    "build": 17,
-    "releaseNote": "تحسين واجهة التحديث وإصلاحات عامة.",
+    "version": "0.1.17",
+    "build": 18,
+    "releaseNote": "إصلاح مشاكل حفظ البيانات والإعدادات، وتحسين أيقونة التطبيق، وإضافة شاشة ترحيب.",
     "downloadUrl": "https://github.com/MahmoudAlsaht/noor-alsalah/releases/latest/download/noor-alsalah.apk"
 }

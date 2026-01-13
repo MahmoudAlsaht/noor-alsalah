@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Preferences } from '@capacitor/preferences';
 
 /**
  * Total pages in the Quran
@@ -23,40 +24,67 @@ export interface UseQuranProgressReturn {
     setPage: (page: number) => void;
     resetProgress: () => void;
     quranComUrl: string;
-}
-
-/**
- * Load page from localStorage (for lazy init)
- */
-function loadPage(): number {
-    if (typeof window === 'undefined') return 1;
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            const page = parseInt(stored, 10);
-            if (page >= 1 && page <= TOTAL_QURAN_PAGES) {
-                return page;
-            }
-        }
-    } catch {
-        // Ignore errors
-    }
-    return 1;
+    isLoading: boolean;
 }
 
 /**
  * useQuranProgress Hook
  * 
  * Tracks Quran reading progress by page number.
- * Provides link to quran.com for the current page.
+ * Persists to Capacitor Preferences.
  */
 export function useQuranProgress(): UseQuranProgressReturn {
-    // Lazy initialization from localStorage
-    const [currentPage, setCurrentPage] = useState<number>(() => loadPage());
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [isLoading, setIsLoading] = useState(true);
+    const isInitialMount = useRef(true);
 
-    // Save to localStorage when page changes
+    // Load progress on mount
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, currentPage.toString());
+        const load = async () => {
+            try {
+                const { value } = await Preferences.get({ key: STORAGE_KEY });
+                if (value) {
+                    const page = parseInt(value, 10);
+                    if (page >= 1 && page <= TOTAL_QURAN_PAGES) {
+                        setCurrentPage(page);
+                    }
+                } else {
+                    // MIGRATION
+                    if (typeof window !== 'undefined') {
+                        const local = localStorage.getItem(STORAGE_KEY);
+                        if (local) {
+                            console.log('[Migration] Found quran progress in localStorage, migrating');
+                            const page = parseInt(local, 10);
+                            if (page >= 1 && page <= TOTAL_QURAN_PAGES) {
+                                setCurrentPage(page);
+                                await Preferences.set({ key: STORAGE_KEY, value: page.toString() });
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load quran progress', e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        load();
+    }, []);
+
+    // Save to Preferences when page changes
+    useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
+        const save = async () => {
+            await Preferences.set({
+                key: STORAGE_KEY,
+                value: currentPage.toString()
+            });
+        };
+        save();
     }, [currentPage]);
 
     /**
@@ -102,5 +130,6 @@ export function useQuranProgress(): UseQuranProgressReturn {
         setPage,
         resetProgress,
         quranComUrl,
+        isLoading,
     };
 }

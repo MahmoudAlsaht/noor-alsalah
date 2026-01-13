@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
+import { Preferences } from '@capacitor/preferences';
 
 /**
  * Prayer IDs that can be tracked (excludes sunrise)
@@ -26,6 +27,7 @@ export interface UsePrayerTrackerReturn {
     completedCount: number;
     totalCount: number;
     completionPercentage: number;
+    isLoading: boolean;
 }
 
 /**
@@ -36,36 +38,60 @@ function getTodayKey(): string {
 }
 
 /**
- * Load prayers from localStorage (for lazy init)
- */
-function loadPrayers(): PrayerRecord {
-    if (typeof window === 'undefined') return {};
-    try {
-        const stored = localStorage.getItem(getTodayKey());
-        if (stored) {
-            return JSON.parse(stored);
-        }
-    } catch {
-        // Ignore parse errors
-    }
-    return {};
-}
-
-/**
  * usePrayerTracker Hook
  * 
  * Tracks which prayers have been performed today.
- * Persists to localStorage with date-based keys.
+ * Persists to Capacitor Preferences with date-based keys.
  */
 export function usePrayerTracker(): UsePrayerTrackerReturn {
-    // Lazy initialization from localStorage
-    const [prayersDone, setPrayersDone] = useState<PrayerRecord>(() => loadPrayers());
+    const [prayersDone, setPrayersDone] = useState<PrayerRecord>({});
+    const [isLoading, setIsLoading] = useState(true);
+    const isInitialMount = useRef(true);
 
-    // Save to localStorage when state changes
+    // Load prayers on mount
     useEffect(() => {
-        if (Object.keys(prayersDone).length > 0) {
-            localStorage.setItem(getTodayKey(), JSON.stringify(prayersDone));
+        const load = async () => {
+            const key = getTodayKey();
+            try {
+                const { value } = await Preferences.get({ key });
+                if (value) {
+                    setPrayersDone(JSON.parse(value));
+                } else {
+                    // MIGRATION: Check localStorage
+                    if (typeof window !== 'undefined') {
+                        const local = localStorage.getItem(key);
+                        if (local) {
+                            console.log('[Migration] Found prayers in localStorage, migrating');
+                            const parsed = JSON.parse(local);
+                            setPrayersDone(parsed);
+                            await Preferences.set({ key, value: local });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load prayer tracker', e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        load();
+    }, []);
+
+    // Save to Preferences when state changes
+    useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
         }
+
+        const save = async () => {
+            const key = getTodayKey();
+            // Only save if we have data or if we want to deliberately save empty state
+            if (Object.keys(prayersDone).length > 0) {
+                await Preferences.set({ key, value: JSON.stringify(prayersDone) });
+            }
+        };
+        save();
     }, [prayersDone]);
 
     /**
@@ -102,5 +128,6 @@ export function usePrayerTracker(): UsePrayerTrackerReturn {
         completedCount,
         totalCount,
         completionPercentage,
+        isLoading,
     };
 }

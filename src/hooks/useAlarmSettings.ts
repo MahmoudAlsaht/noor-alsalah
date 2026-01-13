@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Preferences } from '@capacitor/preferences';
 
 /**
  * Alarm timing options
@@ -53,6 +54,7 @@ const STORAGE_KEY = 'alarm-settings';
  */
 export interface UseAlarmSettingsReturn {
     settings: AlarmSettings;
+    isLoading: boolean;
     updatePrayerSetting: (
         prayer: keyof Omit<AlarmSettings, 'firstFajrOffset' | 'playSound' | 'timeFormat'>,
         update: Partial<PrayerAlarmSettings>
@@ -64,42 +66,67 @@ export interface UseAlarmSettingsReturn {
 }
 
 /**
- * Load settings from localStorage
- */
-function loadSettings(): AlarmSettings {
-    if (typeof window === 'undefined') return DEFAULT_SETTINGS;
-
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
-        }
-    } catch {
-        // Ignore errors
-    }
-    return DEFAULT_SETTINGS;
-}
-
-/**
  * useAlarmSettings Hook
  * 
- * Manages per-prayer alarm preferences:
- * - Enable/disable per prayer
- * - Timing: at prayer time, before end, or both
- * - First Fajr adhan support
+ * Manages per-prayer alarm preferences using Capacitor Preferences.
  */
 export function useAlarmSettings(): UseAlarmSettingsReturn {
-    // Use lazy initialization to load from localStorage immediately
-    const [settings, setSettings] = useState<AlarmSettings>(() => loadSettings());
+    const [settings, setSettings] = useState<AlarmSettings>(DEFAULT_SETTINGS);
+    const [isLoading, setIsLoading] = useState(true);
     const isInitialMount = useRef(true);
 
-    // Save to localStorage (but skip initial mount to prevent overwriting)
+    // Load settings on mount
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const { value } = await Preferences.get({ key: STORAGE_KEY });
+                if (value) {
+                    setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(value) });
+                } else {
+                    // MIGRATION: Check localStorage if no Preference found
+                    if (typeof window !== 'undefined') {
+                        const local = localStorage.getItem(STORAGE_KEY);
+                        if (local) {
+                            console.log('[Migration] Found settings in localStorage, migrating to Preferences');
+                            const parsed = JSON.parse(local);
+                            const merged = { ...DEFAULT_SETTINGS, ...parsed };
+                            setSettings(merged);
+                            // Save to Preferences immediately
+                            await Preferences.set({
+                                key: STORAGE_KEY,
+                                value: JSON.stringify(merged),
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load settings', e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        load();
+    }, []);
+
+    // Save settings when changed
     useEffect(() => {
         if (isInitialMount.current) {
             isInitialMount.current = false;
             return;
         }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+
+        // Debounce or just save
+        const save = async () => {
+            try {
+                await Preferences.set({
+                    key: STORAGE_KEY,
+                    value: JSON.stringify(settings),
+                });
+            } catch (e) {
+                console.error('Failed to save settings', e);
+            }
+        };
+        save();
     }, [settings]);
 
     /**
@@ -148,6 +175,7 @@ export function useAlarmSettings(): UseAlarmSettingsReturn {
 
     return {
         settings,
+        isLoading,
         updatePrayerSetting,
         setFirstFajrOffset,
         setPlaySound,
