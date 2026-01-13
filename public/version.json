@@ -1,6 +1,6 @@
 {
-    "version": "0.1.18",
-    "build": 19,
-    "releaseNote": "إضافة عد تنازلي للويدجت وتحسين تصميمها (زوايا دائرية).",
+    "version": "0.1.19",
+    "build": 20,
+    "releaseNote": "تحسينات على المنبه (إيقاف تلقائي) وقنوات التنبيهات، وتحديث الويدجت.",
     "downloadUrl": "https://github.com/MahmoudAlsaht/noor-alsalah/releases/latest/download/noor-alsalah.apk"
 }
