@@ -1,11 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 
 export default function TestNotifications() {
     const { scheduleNotification, requestPermission, permission } = useNotifications();
     const [status, setStatus] = useState('');
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
 
     const simulateNotification = async (type: 'adhan' | 'gentle' | 'default', title: string) => {
         setStatus(`Simulating ${type}...`);
