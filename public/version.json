@@ -1,6 +1,6 @@
 {
-    "version": "0.1.19",
-    "build": 20,
-    "releaseNote": "تحسينات على المنبه (إيقاف تلقائي) وقنوات التنبيهات، وتحديث الويدجت.",
+    "version": "0.1.20",
+    "build": 21,
+    "releaseNote": "إصلاحات في أصوات التنبيهات وإضافة صفحة اختبار.",
     "downloadUrl": "https://github.com/MahmoudAlsaht/noor-alsalah/releases/latest/download/noor-alsalah.apk"
 }
