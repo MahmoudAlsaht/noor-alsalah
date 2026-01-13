@@ -190,7 +190,7 @@ export default function SettingsPage() {
                 <div style={{ marginTop: '0.5rem' }}>
                     <button
                         className="btn btn-primary"
-                        style={{ width: '100%', padding: '1rem', justifyContent: 'center' }}
+                        style={{ width: '100%', padding: '1rem', justifyContent: 'center', backgroundColor: '#059669' }} // Emerald color for 0.1.16 test
                         onClick={() => checkForUpdate(true)}
                         disabled={isChecking}
                     >
@@ -200,7 +200,7 @@ export default function SettingsPage() {
             </section>
             {/* App Version Info */}
             <p className="text-secondary" style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem' }}>
-                إصدار التطبيق: 0.1.14
+                إصدار التطبيق: 0.1.16
             </p>
         </div>
     );
