@@ -1,6 +1,6 @@
 {
-    "version": "0.1.17",
-    "build": 18,
-    "releaseNote": "إصلاح مشاكل حفظ البيانات والإعدادات، وتحسين أيقونة التطبيق، وإضافة شاشة ترحيب.",
+    "version": "0.1.18",
+    "build": 19,
+    "releaseNote": "إضافة عد تنازلي للويدجت وتحسين تصميمها (زوايا دائرية).",
     "downloadUrl": "https://github.com/MahmoudAlsaht/noor-alsalah/releases/latest/download/noor-alsalah.apk"
 }

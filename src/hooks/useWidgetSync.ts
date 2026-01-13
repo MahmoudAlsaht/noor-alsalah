@@ -35,6 +35,7 @@ export function useWidgetSync(
                 const data = {
                     nextPrayerName: nextPrayer.nameAr,
                     nextPrayerTime: nextPrayer.timeFormatted,
+                    nextPrayerTimestamp: nextPrayer.time.getTime(),
                     city: 'إربد، الأردن',
                     date: date,
                     lastUpdated: new Date().toISOString()
