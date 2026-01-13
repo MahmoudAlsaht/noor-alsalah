@@ -4,6 +4,14 @@
 /node_modules
 /.pnp
 .pnp.*
+# Capacitor
+capacitor.config.json
+capacitor.config.ts
+android/app/build/
+android/app/src/main/assets/
+*.apk
+public/*.apk
+out/
 .yarn/*
 !.yarn/patches
 !.yarn/plugins

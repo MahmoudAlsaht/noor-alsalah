@@ -7,7 +7,7 @@ import { useAlarmSettings } from '@/hooks/useAlarmSettings';
 import { useAlarmSound, ALARM_SOUNDS } from '@/hooks/useAlarmSound';
 import { useAppUpdater } from '@/hooks/useAppUpdater';
 import { isNativeApp } from '@/lib/platform';
-import { DownloadAppSection } from '@/components/DownloadAppSection';
+// DownloadAppSection removed - not needed in native app settings
 import styles from './settings.module.css';
 
 const PRAYER_LABELS: Record<string, string> = {
@@ -21,7 +21,7 @@ const PRAYER_LABELS: Record<string, string> = {
 
 export default function SettingsPage() {
     const { settings, updatePrayerSetting, setTimeFormat } = useAlarmSettings();
-    const { selectedSound, setSelectedSound, setCustomSound, playAlarm, stopAlarm, isPlaying, hasCustomSound } = useAlarmSound();
+    const { selectedSound, setSelectedSound, playAlarm, stopAlarm, isPlaying, hasCustomSound } = useAlarmSound();
     const { isChecking, checkForUpdate } = useAppUpdater();
 
     const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
@@ -89,19 +89,39 @@ export default function SettingsPage() {
                 {prayers.map((prayer) => (
                     <div key={prayer} className={styles.timingRow}>
                         <span>{PRAYER_LABELS[prayer]}</span>
-                        <select
-                            value={settings[prayer].timing}
-                            onChange={(e) =>
-                                updatePrayerSetting(prayer, { timing: e.target.value as 'atTime' | 'beforeEnd' | 'both' | 'none' })
-                            }
-                            className={styles.select}
-                            disabled={!settings[prayer].enabled}
-                        >
-                            <option value="atTime">وقت الصلاة</option>
-                            <option value="beforeEnd">قبل خروج الوقت</option>
-                            <option value="both">الاثنين</option>
-                            <option value="none">بدون</option>
-                        </select>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <select
+                                value={settings[prayer].timing}
+                                onChange={(e) =>
+                                    updatePrayerSetting(prayer, { timing: e.target.value as 'atTime' | 'beforeEnd' | 'both' | 'none' })
+                                }
+                                className={styles.select}
+                                disabled={!settings[prayer].enabled}
+                            >
+                                <option value="atTime">وقت الصلاة</option>
+                                <option value="beforeEnd">قبل خروج الوقت</option>
+                                <option value="both">الاثنين</option>
+                                <option value="none">بدون</option>
+                            </select>
+
+                            {/* Minutes selector for beforeEnd */}
+                            {(settings[prayer].timing === 'beforeEnd' || settings[prayer].timing === 'both') && settings[prayer].enabled && (
+                                <select
+                                    value={settings[prayer].beforeEndMinutes}
+                                    onChange={(e) =>
+                                        updatePrayerSetting(prayer, { beforeEndMinutes: parseInt(e.target.value) })
+                                    }
+                                    className={styles.select}
+                                    style={{ width: 'auto', minWidth: '70px' }}
+                                >
+                                    <option value="5">5 د</option>
+                                    <option value="10">10 د</option>
+                                    <option value="15">15 د</option>
+                                    <option value="20">20 د</option>
+                                    <option value="30">30 د</option>
+                                </select>
+                            )}
+                        </div>
                     </div>
                 ))}
             </section>
@@ -130,28 +150,7 @@ export default function SettingsPage() {
                     </select>
                 </div>
 
-                {/* Custom Sound Upload - Web Only */}
-                {!isNativeApp() ? (
-                    <div className={styles.uploadRow}>
-                        <label>رفع صوت مخصص:</label>
-                        <input
-                            type="file"
-                            accept="audio/*"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                    setCustomSound(file);
-                                }
-                            }}
-                            className={styles.fileInput}
-                        />
-                        {hasCustomSound && <span className={styles.uploadStatus}>✅ تم رفع صوت مخصص</span>}
-                    </div>
-                ) : (
-                    <div className={styles.textSecondary} style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
-                        {/* * الأصوات المخصصة غير متوفرة في التطبيق حالياً. */}
-                    </div>
-                )}
+                {/* Custom Sound Upload - Feature postponed */}
 
                 <button
                     className="btn btn-secondary"
@@ -199,10 +198,10 @@ export default function SettingsPage() {
                     </button>
                 </div>
             </section>
-            {/* ... other sections ... */}
-
-            {/* Download App Section */}
-            <DownloadAppSection />
+            {/* App Version Info */}
+            <p className="text-secondary" style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem' }}>
+                إصدار التطبيق: 0.1.14
+            </p>
         </div>
     );
 }

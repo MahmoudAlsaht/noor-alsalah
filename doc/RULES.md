@@ -25,3 +25,47 @@
 ## 🚀 النشر والتحديثات (Deployment & Updates)
 - **قاعدة ذهبية**: عند إجراء أي تعديل أو تحديث على التطبيق (سواء كود أو تصميم)، **يجب** تحديث رقم الإصدار في ملف `public/version.json` (وملف `package.json`).
 - هذا ضروري جداً لكي يكتشف التطبيق التحديث الجديد تلقائياً عند المستخدمين.
+
+## 🏁 إنهاء الجلسة ورفع التحديثات الجديدة
+
+### الخطوة 1: زيادة رقم الإصدار (في 3 ملفات)
+| الملف | الحقل |
+|-------|-------|
+| `package.json` | `"version": "X.Y.Z"` |
+| `public/version.json` | `"version": "X.Y.Z"`, `"build": N` |
+| `android/app/build.gradle` | `versionCode N`, `versionName "X.Y.Z"` |
+
+### الخطوة 2: البناء والمزامنة
+```bash
+npm run lint
+npm run build
+npx cap sync android
+```
+
+### الخطوة 3: بناء APK موقّع
+1. افتح Android Studio → `android/`
+2. Build → Generate Signed Bundle / APK → APK
+3. اختر Keystore الموجود (`/home/mahmoudkde/noor-keystore.jks`)
+4. Build Variant: `release` مع V1 + V2 Signatures
+5. الملف الناتج: `android/app/release/app-release.apk`
+
+### الخطوة 4: رفع الكود على GitHub
+```bash
+git add .
+git commit -m "v0.1.X - وصف التحديث"
+git push origin main
+```
+> انتظر دقيقة حتى يُنشر على Vercel.
+
+### الخطوة 5: إنشاء GitHub Release
+1. اذهب إلى: https://github.com/MahmoudAlsaht/noor-alsalah/releases
+2. اضغط **Create a new release**
+3. Tag: `vX.Y.Z` (مثال: `v0.1.15`)
+4. ارفع ملف `app-release.apk` وأعد تسميته إلى `noor-alsalah.apk`
+5. اضغط **Publish release**
+
+### ✅ التحقق النهائي
+- [ ] الموقع يعمل على Vercel
+- [ ] `version.json` يظهر الإصدار الجديد
+- [ ] رابط تحميل APK يعمل من GitHub Releases
+

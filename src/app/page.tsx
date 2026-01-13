@@ -11,7 +11,7 @@ import { useAlarmSound } from '@/hooks/useAlarmSound';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
 import { usePrayerReminder } from '@/hooks/usePrayerReminder';
-import { useWidgetSync } from '@/hooks/useWidgetSync'; // Import
+// import { useWidgetSync } from '@/hooks/useWidgetSync'; // Disabled for now
 import { isNativeApp } from '@/lib/platform'; // Import Platform Check
 import { PrayerRow } from '@/components/PrayerRow';
 import { DownloadAppSection } from '@/components/DownloadAppSection'; // Import
@@ -29,8 +29,8 @@ export default function Home() {
   // We can expand range if needed, but UI specified Yesterday/Tomorrow
   const [dayOffset, setDayOffset] = useState(0);
 
-  // Sync data to native widget (Always sync Today's data)
-  useWidgetSync(todayPrayers, currentDate.toLocaleDateString('ar-JO'), nextPrayer);
+  // Sync data to native widget - DISABLED FOR NOW
+  // useWidgetSync(todayPrayers, currentDate.toLocaleDateString('ar-JO'), nextPrayer);
 
   // Determine which prayers to show based on selected day
   const displayedPrayers = dayOffset === 0
@@ -75,54 +75,91 @@ export default function Home() {
 
   // Schedule notifications for upcoming prayers
   useEffect(() => {
-    // If native, we don't use this web-based scheduling effect for browser notifications
-    // Native alarms are handled via the hook's internal logic or separate effect if needed.
-    // However, the current scheduleNotification hook handles native inside it.
-    // We just need to make sure we don't request duplicate permissions or show UI.
-
-    // BUT checking existing logic: scheduleNotification handles both. 
-    // The issue might be the Permission Button in UI.
-
     if (permission !== 'granted' || todayPrayers.length === 0) return;
 
     // Map sound ID to actual filename for Native
-    // Note: These files must exist in android/app/src/main/res/raw/
     const soundMapping: Record<string, string> = {
       default: 'adhan.mp3',
       gentle: 'gentle.mp3',
-      custom: 'adhan.mp3', // Fallback for native custom sound
+      custom: 'adhan.mp3',
     };
     const soundFile = soundMapping[selectedSound] || 'adhan.mp3';
 
-    todayPrayers.forEach((prayer) => {
+    todayPrayers.forEach((prayer, index) => {
       // Only schedule for trackable prayers (not sunrise)
       if (prayer.id === 'sunrise') return;
 
       // Don't schedule if prayer is already marked as done
       if (isPrayerDone(prayer.id)) {
-        cancelNotification(prayer.id); // Cancel any existing
+        cancelNotification(prayer.id, 'atTime');
+        cancelNotification(prayer.id, 'beforeEnd');
         return;
       }
 
       // Check if this prayer's alarm is enabled
       const prayerSettings = settings[prayer.id as keyof typeof settings];
-      if (typeof prayerSettings === 'object' && !prayerSettings.enabled) return;
+      if (typeof prayerSettings !== 'object' || !prayerSettings.enabled) {
+        cancelNotification(prayer.id, 'atTime');
+        cancelNotification(prayer.id, 'beforeEnd');
+        return;
+      }
 
-      // Callback when notification fires: open alarm page (page handles sound)
+      const timing = prayerSettings.timing;
+      const beforeEndMinutes = prayerSettings.beforeEndMinutes || 15;
+
+      // Callback when notification fires: open alarm page
       const onFireCallback = () => {
-        // Redirect to full-screen alarm page (it handles audio)
         window.location.href = `/alarm?prayer=${prayer.id}`;
       };
 
-      scheduleNotification(
-        `حان وقت صلاة ${prayer.nameAr}`,
-        { body: 'حي على الصلاة 🕌', tag: prayer.id },
-        prayer.time,
-        prayer.id,
-        'atTime',
-        onFireCallback,
-        soundFile // Pass sound file
-      );
+      // Schedule AT TIME notification (if timing is 'atTime' or 'both')
+      if (timing === 'atTime' || timing === 'both') {
+        scheduleNotification(
+          `حان وقت صلاة ${prayer.nameAr}`,
+          { body: 'حي على الصلاة 🕌', tag: prayer.id },
+          prayer.time,
+          prayer.id,
+          'atTime',
+          onFireCallback,
+          soundFile
+        );
+      } else {
+        cancelNotification(prayer.id, 'atTime');
+      }
+
+      // Schedule BEFORE END notification (if timing is 'beforeEnd' or 'both')
+      if (timing === 'beforeEnd' || timing === 'both') {
+        // Find the next prayer to calculate "before end" time
+        // "End" of current prayer = Start of next prayer
+        let nextPrayerTime: Date | null = null;
+
+        // Find next non-sunrise prayer
+        for (let i = index + 1; i < todayPrayers.length; i++) {
+          if (todayPrayers[i].id !== 'sunrise') {
+            nextPrayerTime = todayPrayers[i].time;
+            break;
+          }
+        }
+
+        if (nextPrayerTime) {
+          const beforeEndTime = new Date(nextPrayerTime.getTime() - beforeEndMinutes * 60 * 1000);
+
+          // Only schedule if beforeEndTime is in the future
+          if (beforeEndTime.getTime() > Date.now()) {
+            scheduleNotification(
+              `تذكير: صلاة ${prayer.nameAr}`,
+              { body: `باقي ${beforeEndMinutes} دقيقة على خروج الوقت ⏰`, tag: `${prayer.id}-beforeEnd` },
+              beforeEndTime,
+              prayer.id,
+              'beforeEnd',
+              onFireCallback,
+              soundFile
+            );
+          }
+        }
+      } else {
+        cancelNotification(prayer.id, 'beforeEnd');
+      }
     });
   }, [todayPrayers, permission, scheduleNotification, cancelNotification, isPrayerDone, settings, selectedSound]);
 
@@ -141,6 +178,65 @@ export default function Home() {
     );
   }
 
+  // Simple Web View - Only shows today's prayer times + countdown
+  if (!isNativeApp()) {
+    return (
+      <div className={styles.container}>
+        {/* Header with Logo */}
+        <header className={styles.header}>
+          <Image
+            src="/logo-master.png"
+            alt="Prayer Times"
+            width={60}
+            height={60}
+            className={styles.logo}
+          />
+          <h1 className={styles.title}>نور الصلاة</h1>
+          <p className={styles.subtitle}>إربد، الأردن</p>
+        </header>
+
+        {/* Next Prayer Card */}
+        {nextPrayer && (
+          <section className={`card ${styles.nextPrayerCard}`}>
+            <div className={styles.nextPrayerLabel}>
+              <Clock size={18} />
+              <span>الصلاة القادمة</span>
+            </div>
+            <h2 className={styles.nextPrayerName}>{nextPrayer.nameAr}</h2>
+            <div className={styles.countdown}>{timeRemaining}</div>
+            <p className={styles.nextPrayerTime}>
+              {nextPrayer.timeFormatted}
+            </p>
+          </section>
+        )}
+
+        {/* Prayer Times List - Simple, no checklist */}
+        <section className={`card ${styles.prayerList}`}>
+          <div className={styles.sectionHeader} style={{ marginBottom: 0, paddingBottom: '1rem' }}>
+            <h3>مواقيت الصلاة</h3>
+          </div>
+          <div className={styles.prayerRows}>
+            {todayPrayers.map((prayer) => (
+              <PrayerRow
+                key={prayer.id}
+                prayer={prayer}
+                isDone={false}
+                isNext={nextPrayer?.id === prayer.id}
+                currentTime={currentDate}
+                onToggle={() => { }}
+                readOnly={true}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Download App Section */}
+        <DownloadAppSection />
+      </div>
+    );
+  }
+
+  // Full Native App View - All features
   return (
     <div className={styles.container}>
       {/* Header with Logo */}
@@ -155,14 +251,10 @@ export default function Home() {
         <h1 className={styles.title}>نور الصلاة</h1>
         <p className={styles.subtitle}>إربد، الأردن</p>
 
-
-
-        {/* Settings Link - Native Only */}
-        {isNativeApp() && (
-          <Link href="/settings" className={styles.settingsBtn}>
-            <Settings size={20} />
-          </Link>
-        )}
+        {/* Settings Link */}
+        <Link href="/settings" className={styles.settingsBtn}>
+          <Settings size={20} />
+        </Link>
       </header>
 
       {/* Next Prayer Card */}
@@ -180,16 +272,15 @@ export default function Home() {
         </section>
       )}
 
-      {/* Prayer Times List */}
+      {/* Prayer Times List with full features */}
       <section className={`card ${styles.prayerList}`}>
         <div className={styles.sectionHeader} style={{ marginBottom: 0, paddingBottom: '1rem' }}>
           <h3>مواقيت الصلاة</h3>
-          {/* Only show count if Today */
-            dayOffset === 0 && (
-              <span className="text-secondary">
-                {completedCount}/{totalCount}
-              </span>
-            )}
+          {dayOffset === 0 && (
+            <span className="text-secondary">
+              {completedCount}/{totalCount}
+            </span>
+          )}
         </div>
 
         {/* Date Navigation Tabs */}
@@ -211,13 +302,11 @@ export default function Home() {
             <PrayerRow
               key={prayer.id}
               prayer={prayer}
-              // Only check 'done' status if we are viewing Today
               isDone={dayOffset === 0 ? isPrayerDone(prayer.id) : false}
-              // Only highlight 'next' if we are viewing Today
               isNext={dayOffset === 0 && nextPrayer?.id === prayer.id}
               currentTime={currentDate}
               onToggle={togglePrayer}
-              readOnly={dayOffset !== 0} // Disable interaction for non-today
+              readOnly={dayOffset !== 0}
             />
           ))}
         </div>
@@ -247,9 +336,7 @@ export default function Home() {
           </button>
         </div>
       </section>
-
-      {/* Download App Section - Web Only */}
-      {!isNativeApp() && <DownloadAppSection />}
     </div>
   );
 }
+

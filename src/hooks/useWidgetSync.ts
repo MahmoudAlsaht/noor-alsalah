@@ -2,37 +2,58 @@
 
 import { useEffect } from 'react';
 import { Preferences } from '@capacitor/preferences';
-import { isNativeApp } from '../lib/platform';
-import { type PrayerTimeEntry } from './usePrayerTimes';
+import { isNativeApp } from '@/lib/platform';
 
-export function useWidgetSync(prayers: PrayerTimeEntry[], currentDate: string, nextPrayer: PrayerTimeEntry | null) {
+interface Prayer {
+    id: string;
+    nameAr: string;
+    time: Date;
+    timeFormatted: string;
+}
+
+export function useWidgetSync(
+    todayPrayers: Prayer[],
+    date: string,
+    nextPrayer: Prayer | null
+) {
     useEffect(() => {
-        if (!isNativeApp() || prayers.length === 0) return;
+        // DEBUG: Log to verify this runs
+        console.log('[WidgetSync] Hook triggered. isNative:', isNativeApp(), 'nextPrayer:', nextPrayer?.nameAr);
 
-        const syncData = async () => {
+        if (!isNativeApp()) {
+            console.log('[WidgetSync] Not native app, skipping sync');
+            return;
+        }
+
+        if (!nextPrayer) {
+            console.log('[WidgetSync] No next prayer, skipping sync');
+            return;
+        }
+
+        const syncToNative = async () => {
             try {
-                const data: Record<string, string> = {
-                    date: currentDate,
-                    nextName: nextPrayer ? nextPrayer.nameAr : '',
-                    nextTime: nextPrayer ? nextPrayer.timeFormatted : '',
+                const data = {
+                    nextPrayerName: nextPrayer.nameAr,
+                    nextPrayerTime: nextPrayer.timeFormatted,
+                    city: 'إربد، الأردن',
+                    date: date,
+                    lastUpdated: new Date().toISOString()
                 };
 
-                prayers.forEach(p => {
-                    data[p.id] = p.timeFormatted;
-                });
+                console.log('[WidgetSync] Saving data:', JSON.stringify(data));
 
-                // Write to Capacitor Preferences
                 await Preferences.set({
-                    key: 'widget_prayer_data',
+                    key: 'WIDGET_DATA',
                     value: JSON.stringify(data),
                 });
-                console.log('Widget data synced to Prefs:', data);
 
-            } catch (error) {
-                console.error('Failed to sync widget data:', error);
+                console.log('[WidgetSync] Data saved successfully!');
+
+            } catch (e) {
+                console.error('[WidgetSync] Failed to sync:', e);
             }
         };
 
-        syncData();
-    }, [prayers, currentDate, nextPrayer]);
+        syncToNative();
+    }, [todayPrayers, date, nextPrayer]);
 }
