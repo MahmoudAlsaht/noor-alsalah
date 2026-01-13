@@ -68,20 +68,30 @@ function AlarmContent() {
         return () => clearInterval(interval);
     }, []);
 
-    // Handle audio with HTML audio element callback
-    const handleAudioRef = (audio: HTMLAudioElement | null) => {
-        if (audio && !audioRef.current) {
-            audioRef.current = audio;
-            audio.play().catch(console.error);
-        }
-    };
-
     const handleStop = () => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
         }
         router.push('/');
+    };
+
+    // Auto-stop alarm after 2 minutes
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            console.log('Alarm auto-stopped after 2 minutes');
+            handleStop();
+        }, 120000); // 2 minutes
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    // Handle audio with HTML audio element callback
+    const handleAudioRef = (audio: HTMLAudioElement | null) => {
+        if (audio && !audioRef.current) {
+            audioRef.current = audio;
+            audio.play().catch(console.error);
+        }
     };
 
     if (!isNativeApp()) return null;

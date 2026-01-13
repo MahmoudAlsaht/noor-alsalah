@@ -70,6 +70,56 @@ export function useNotifications(): UseNotificationsReturn {
     const scheduledRef = useRef<ScheduledNotification[]>([]); // For Web timeouts
 
     /**
+     * Create Notification Channels (Native only)
+     */
+    const createChannels = useCallback(async () => {
+        if (!isNativeApp()) return;
+
+        try {
+            // Channel for Default Adhan
+            await LocalNotifications.createChannel({
+                id: 'prayer_channel_adhan',
+                name: 'تنبيهات الصلاة (أذان)',
+                description: 'تنبيهات أوقات الصلاة مع صوت الأذان',
+                importance: 5, // HIGH
+                visibility: 1, // PUBLIC
+                sound: 'adhan.mp3',
+                vibration: true,
+            });
+
+            // Channel for Gentle Sound
+            await LocalNotifications.createChannel({
+                id: 'prayer_channel_gentle',
+                name: 'تنبيهات الصلاة (هادئ)',
+                description: 'تنبيهات أوقات الصلاة مع صوت هادئ',
+                importance: 5, // HIGH
+                visibility: 1, // PUBLIC
+                sound: 'gentle.mp3',
+                vibration: true,
+            });
+
+            // Channel for Default/Other
+            await LocalNotifications.createChannel({
+                id: 'prayer_channel_default',
+                name: 'تنبيهات الصلاة (عام)',
+                description: 'تنبيهات عامة',
+                importance: 3, // DEAULT
+                visibility: 1,
+                sound: 'alert.mp3',
+                vibration: true,
+            });
+
+        } catch (e) {
+            console.error('Failed to create notification channels', e);
+        }
+    }, []);
+
+    // Initialize channels on load
+    useState(() => {
+        createChannels();
+    });
+
+    /**
      * Request notification permission
      */
     const requestPermission = useCallback(async () => {
@@ -79,6 +129,8 @@ export function useNotifications(): UseNotificationsReturn {
             try {
                 const result = await LocalNotifications.requestPermissions();
                 setPermission(result.display === 'granted' ? 'granted' : 'denied');
+                // Ensure channels are created after permission (just in case)
+                await createChannels();
             } catch (e) {
                 console.error('Native permission request failed', e);
             }
@@ -90,7 +142,7 @@ export function useNotifications(): UseNotificationsReturn {
                 console.error('Failed to request notification permission');
             }
         }
-    }, [isSupported]);
+    }, [isSupported, createChannels]);
 
     /**
      * Send immediate notification
@@ -100,6 +152,9 @@ export function useNotifications(): UseNotificationsReturn {
             if (!isSupported) return;
 
             if (isNativeApp()) {
+                // Determine channel based on simplistic logic or default
+                const channelId = 'prayer_channel_default';
+
                 // For native, we just schedule it 1s in future as "immediate"
                 await LocalNotifications.schedule({
                     notifications: [{
@@ -107,8 +162,9 @@ export function useNotifications(): UseNotificationsReturn {
                         body: options?.body || '',
                         id: Math.floor(Date.now() / 1000), // Random ID for immediate
                         schedule: { at: new Date(Date.now() + 100) },
-                        sound: 'adhan.mp3', // Make sure this file exists in android/app/src/main/res/raw
-                        smallIcon: 'ic_stat_icon_config_sample', // Default capacitor icon
+                        sound: 'alert.mp3',
+                        smallIcon: 'ic_stat_icon_config_sample',
+                        channelId,
                         actionTypeId: '',
                         extra: null
                     }]
@@ -178,6 +234,15 @@ export function useNotifications(): UseNotificationsReturn {
 
             if (isNativeApp()) {
                 const id = generateNotificationId(prayerId, type);
+
+                // Determine Channel ID based on sound file
+                let channelId = 'prayer_channel_default';
+                if (sound?.includes('adhan')) {
+                    channelId = 'prayer_channel_adhan';
+                } else if (sound?.includes('gentle')) {
+                    channelId = 'prayer_channel_gentle';
+                }
+
                 try {
                     await LocalNotifications.schedule({
                         notifications: [{
@@ -185,9 +250,9 @@ export function useNotifications(): UseNotificationsReturn {
                             body: options.body || '',
                             id,
                             schedule: { at: time, allowWhileIdle: true },
-                            sound: sound || 'adhan.mp3', // Use passed sound or default
+                            sound: sound || 'adhan.mp3',
                             smallIcon: 'ic_stat_icon_config_sample',
-                            channelId: 'prayer_channel',
+                            channelId,
                         }]
                     });
                 } catch (e) {

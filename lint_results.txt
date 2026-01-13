@@ -1,0 +1,43 @@
+
+> noor-alsalah@0.1.18 lint
+> eslint
+
+
+/home/mahmoudkde/projects/noor-alsalah/src/app/alarm/page.tsx
+  75:13  error    Error: Cannot access variable before it is declared
+
+`handleStop` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+/home/mahmoudkde/projects/noor-alsalah/src/app/alarm/page.tsx:75:13
+  73 |         const timer = setTimeout(() => {
+  74 |             console.log('Alarm auto-stopped after 2 minutes');
+> 75 |             handleStop();
+     |             ^^^^^^^^^^ `handleStop` accessed before it is declared
+  76 |         }, 120000); // 2 minutes
+  77 |
+  78 |         return () => clearTimeout(timer);
+
+/home/mahmoudkde/projects/noor-alsalah/src/app/alarm/page.tsx:89:5
+  87 |     };
+  88 |
+> 89 |     const handleStop = () => {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 90 |         if (audioRef.current) {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 91 |             audioRef.current.pause();
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 92 |             audioRef.current.currentTime = 0;
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 93 |         }
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 94 |         router.push('/');
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 95 |     };
+     | ^^^^^^^ `handleStop` is declared here
+  96 |
+  97 |     if (!isNativeApp()) return null;
+  98 |  react-hooks/immutability
+  79:8   warning  React Hook useEffect has a missing dependency: 'handleStop'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react-hooks/exhaustive-deps
+
+✖ 2 problems (1 error, 1 warning)
+
