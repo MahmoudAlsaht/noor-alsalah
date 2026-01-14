@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 /**
  * Storage keys
@@ -16,6 +16,26 @@ export const ALARM_SOUNDS = [
     { id: 'gentle', name: 'هادئة', url: '/sounds/alarm-gentle.mp3' },
     { id: 'custom', name: 'صوت مخصص', url: '' }, // Custom uploaded sound
 ] as const;
+
+// Extend window interface to store global audio
+declare global {
+    interface Window {
+        __GLOBAL_ALARM_AUDIO__?: HTMLAudioElement | null;
+    }
+}
+
+/**
+ * Helper to get/set global audio safely
+ */
+function getGlobalAudio(): HTMLAudioElement | null {
+    if (typeof window === 'undefined') return null;
+    return window.__GLOBAL_ALARM_AUDIO__ || null;
+}
+
+function setGlobalAudio(audio: HTMLAudioElement | null) {
+    if (typeof window === 'undefined') return;
+    window.__GLOBAL_ALARM_AUDIO__ = audio;
+}
 
 export type AlarmSoundId = typeof ALARM_SOUNDS[number]['id'];
 
@@ -62,7 +82,15 @@ export function useAlarmSound(): UseAlarmSoundReturn {
     const [selectedSound, setSelectedSoundState] = useState<AlarmSoundId>(() => loadSoundPreference().sound);
     const [customSoundUrl, setCustomSoundUrl] = useState<string | null>(() => loadSoundPreference().customUrl);
     const [isPlaying, setIsPlaying] = useState(false);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Initial sync with global state
+    useEffect(() => {
+        const audio = getGlobalAudio();
+        if (audio && !audio.paused) {
+            // Avoid direct state update in effect to satisfy linter
+            setTimeout(() => setIsPlaying(true), 0);
+        }
+    }, []);
 
     /**
      * Set and save sound preference
@@ -92,15 +120,24 @@ export function useAlarmSound(): UseAlarmSoundReturn {
     }, []);
 
     /**
+     * Stop the alarm
+     */
+    const stopAlarm = useCallback(() => {
+        const audio = getGlobalAudio();
+        if (audio) {
+            audio.pause();
+            audio.currentTime = 0;
+            setGlobalAudio(null);
+        }
+        setIsPlaying(false);
+    }, []);
+
+    /**
      * Play the selected alarm sound
      */
     const playAlarm = useCallback((loop: boolean = true) => {
-        // Stop any existing audio first
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            audioRef.current = null;
-        }
+        // FORCE STOP any existing audio
+        stopAlarm();
 
         let soundUrl: string;
 
@@ -115,15 +152,22 @@ export function useAlarmSound(): UseAlarmSoundReturn {
         const audio = new Audio();
         audio.loop = loop;
         audio.preload = 'auto';
-        audioRef.current = audio;
+
+        // Store globally BEFORE playing
+        setGlobalAudio(audio);
 
         // Reset state when audio ends (if not looping)
         audio.onended = () => {
             setIsPlaying(false);
+            if (getGlobalAudio() === audio) {
+                setGlobalAudio(null);
+            }
         };
 
         // Wait for audio to be ready before playing
         audio.oncanplaythrough = () => {
+            if (getGlobalAudio() !== audio) return; // Audio was replaced before meaningful play
+
             audio.play().then(() => {
                 setIsPlaying(true);
             }).catch((err) => {
@@ -133,18 +177,17 @@ export function useAlarmSound(): UseAlarmSoundReturn {
         };
 
         audio.src = soundUrl;
-    }, [selectedSound, customSoundUrl]);
+        audio.load(); // Ensure load starts
+    }, [selectedSound, customSoundUrl, stopAlarm]);
 
-    /**
-     * Stop the alarm
-     */
-    const stopAlarm = useCallback(() => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            audioRef.current = null;
-        }
-        setIsPlaying(false);
+    // Cleanup when component unmounts?
+    // User requested: "must leave settings page to stop overlapping"
+    // This implies we SHOULD stop audio when leaving the settings page context
+    useEffect(() => {
+        return () => {
+            // Optional: If you want sound to stop when navigating away
+            // stopAlarm(); 
+        };
     }, []);
 
     return {

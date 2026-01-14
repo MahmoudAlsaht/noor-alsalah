@@ -100,7 +100,7 @@ export default function SettingsPage() {
                             >
                                 <option value="atTime">وقت الصلاة</option>
                                 <option value="beforeEnd">قبل خروج الوقت</option>
-                                <option value="both">الاثنين</option>
+                                <option value="both">كلاهما</option>
                                 <option value="none">بدون</option>
                             </select>
 
@@ -198,6 +198,31 @@ export default function SettingsPage() {
                     </button>
                 </div>
             </section>
+
+            {/* Dev Tools (Development Only - Hidden in Production) */}
+            {process.env.NODE_ENV === 'development' && (
+                <section className={`card ${styles.section}`} style={{ borderColor: '#f59e0b' }}>
+                    <div className={styles.sectionHeader}>
+                        <Bell size={20} />
+                        <h2>أدوات المطور</h2>
+                    </div>
+                    <Link
+                        href="/test-notifications"
+                        className="btn btn-primary"
+                        style={{
+                            width: '100%',
+                            padding: '1rem',
+                            justifyContent: 'center',
+                            backgroundColor: '#f59e0b',
+                            textDecoration: 'none',
+                            display: 'flex'
+                        }}
+                    >
+                        🔔 محاكاة التنبيهات (اختبار)
+                    </Link>
+                </section>
+            )}
+
             {/* App Version Info */}
             <p className="text-secondary" style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem' }}>
                 إصدار التطبيق: {currentVersion || '...'}

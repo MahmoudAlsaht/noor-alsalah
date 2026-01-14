@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple mosque/prayer notification icon - white silhouette for status bar -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Mosque dome -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,2C12,2 8,6 8,9C8,11 9.5,12 12,12C14.5,12 16,11 16,9C16,6 12,2 12,2Z"/>
+    <!-- Minaret left -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M5,8L5,20L7,20L7,8C7,7 6,6 5.5,5L5,5L5,8Z"/>
+    <!-- Minaret right -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M17,8L17,20L19,20L19,8C19,7 18,6 18.5,5L19,5L17,8Z"/>
+    <!-- Base -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M4,20L20,20L20,22L4,22L4,20Z"/>
+    <!-- Main building -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M8,12L8,20L16,20L16,12L8,12Z"/>
+    <!-- Crescent on top -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M11,1C10.5,1 10,1.5 10,2C10,2.5 10.5,3 11,3C11.5,3 12,2.5 12,2C12,1.5 11.5,1 11,1Z"/>
+</vector>

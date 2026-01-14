@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState, useRef } from 'react';
+import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { isNativeApp } from '@/lib/platform';
@@ -68,13 +68,13 @@ function AlarmContent() {
         return () => clearInterval(interval);
     }, []);
 
-    const handleStop = () => {
+    const handleStop = useCallback(() => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
         }
         router.push('/');
-    };
+    }, [router]);
 
     // Auto-stop alarm after 2 minutes
     useEffect(() => {
@@ -84,7 +84,7 @@ function AlarmContent() {
         }, 120000); // 2 minutes
 
         return () => clearTimeout(timer);
-    }, []);
+    }, [handleStop]);
 
     // Handle audio with HTML audio element callback
     const handleAudioRef = (audio: HTMLAudioElement | null) => {

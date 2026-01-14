@@ -9,7 +9,7 @@ interface PrayerRowProps {
     isDone: boolean;
     isNext: boolean;
     currentTime: Date;
-    onToggle: (prayerId: TrackablePrayer) => void;
+    onToggle: (prayerId: string) => void;
     readOnly?: boolean;
 }
 
@@ -29,7 +29,7 @@ export function PrayerRow({ prayer, isDone, isNext, currentTime, onToggle, readO
 
     const handleCheckboxChange = () => {
         if (canMarkAsDone) {
-            onToggle(prayer.id as TrackablePrayer);
+            onToggle(prayer.id);
         }
     };
 

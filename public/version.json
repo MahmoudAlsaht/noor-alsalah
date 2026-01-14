@@ -1,6 +1,1 @@
-{
-    "version": "0.1.21",
-    "build": 22,
-    "releaseNote": "إصلاح مشكلة عرض رقم الإصدار في الإعدادات.",
-    "downloadUrl": "https://github.com/MahmoudAlsaht/noor-alsalah/releases/latest/download/noor-alsalah.apk"
-}
+{ "version": "0.1.23" }

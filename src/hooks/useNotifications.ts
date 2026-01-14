@@ -50,14 +50,13 @@ function generateNotificationId(prayerId: string, type: string): number {
 
 /**
  * checkNotificationSupport
+ * Only native app supports notifications - web is simplified view only
  */
 function checkNotificationSupport(): { supported: boolean; perm: NotificationPermission | 'unsupported' } {
     if (isNativeApp()) {
         return { supported: true, perm: 'default' }; // Native always supported, perm checked later
     }
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-        return { supported: true, perm: Notification.permission };
-    }
+    // Web version does NOT support notifications - simplified view only
     return { supported: false, perm: 'unsupported' };
 }
 
@@ -76,38 +75,49 @@ export function useNotifications(): UseNotificationsReturn {
         if (!isNativeApp()) return;
 
         try {
-            // Channel for Default Adhan
+            // Channel for Default Adhan (v2 - new channel to override old settings)
             await LocalNotifications.createChannel({
-                id: 'prayer_channel_adhan',
+                id: 'prayer_adhan_v2',
                 name: 'تنبيهات الصلاة (أذان)',
                 description: 'تنبيهات أوقات الصلاة مع صوت الأذان',
                 importance: 5, // HIGH
                 visibility: 1, // PUBLIC
-                sound: 'adhan.mp3',
+                sound: 'adhan', // Without extension for Android
                 vibration: true,
             });
 
-            // Channel for Gentle Sound
+            // Channel for Gentle Sound (v2)
             await LocalNotifications.createChannel({
-                id: 'prayer_channel_gentle',
+                id: 'prayer_gentle_v2',
                 name: 'تنبيهات الصلاة (هادئ)',
                 description: 'تنبيهات أوقات الصلاة مع صوت هادئ',
                 importance: 5, // HIGH
                 visibility: 1, // PUBLIC
-                sound: 'gentle.mp3',
+                sound: 'gentle', // Without extension for Android
                 vibration: true,
             });
 
-            // Channel for Default/Other
+            // Channel for Default/Other (v2)
             await LocalNotifications.createChannel({
-                id: 'prayer_channel_default',
-                name: 'تنبيهات الصلاة (عام)',
-                description: 'تنبيهات عامة',
-                importance: 3, // DEAULT
+                id: 'prayer_alert_v2',
+                name: 'تنبيهات الصلاة (تذكير)',
+                description: 'تنبيهات التذكير قبل خروج الوقت',
+                importance: 4, // DEFAULT
                 visibility: 1,
-                sound: 'alert.mp3',
+                sound: 'alert', // Without extension for Android
                 vibration: true,
             });
+
+            // Check and request exact alarm permission (Android 12+)
+            try {
+                const exactStatus = await LocalNotifications.checkExactNotificationSetting();
+                if (exactStatus.exact_alarm !== 'granted') {
+                    console.log('Exact alarm not granted, opening settings...');
+                    await LocalNotifications.changeExactNotificationSetting();
+                }
+            } catch {
+                console.warn('Exact alarm check not supported or failed');
+            }
 
         } catch (e) {
             console.error('Failed to create notification channels', e);
@@ -127,12 +137,44 @@ export function useNotifications(): UseNotificationsReturn {
 
         if (isNativeApp()) {
             try {
-                const result = await LocalNotifications.requestPermissions();
-                setPermission(result.display === 'granted' ? 'granted' : 'denied');
-                // Ensure channels are created after permission (just in case)
+                // Step 1: Check current permission status
+                const currentStatus = await LocalNotifications.checkPermissions();
+                console.log('[Notifications] Current permission:', currentStatus.display);
+
+                // Step 2: Request notification permission if not granted
+                if (currentStatus.display !== 'granted') {
+                    const result = await LocalNotifications.requestPermissions();
+                    console.log('[Notifications] Permission request result:', result.display);
+
+                    if (result.display !== 'granted') {
+                        setPermission('denied');
+                        console.warn('[Notifications] Permission denied by user');
+                        return;
+                    }
+                }
+
+                setPermission('granted');
+
+                // Step 3: Create notification channels (must be after permission)
                 await createChannels();
+
+                // Step 4: Check exact alarm permission (Android 12+)
+                try {
+                    const exactStatus = await LocalNotifications.checkExactNotificationSetting();
+                    console.log('[Notifications] Exact alarm status:', exactStatus.exact_alarm);
+
+                    if (exactStatus.exact_alarm !== 'granted') {
+                        console.log('[Notifications] Requesting exact alarm permission...');
+                        await LocalNotifications.changeExactNotificationSetting();
+                    }
+                } catch {
+                    // This is expected on Android < 12 or if not supported
+                    console.log('[Notifications] Exact alarm check skipped (not supported or not needed)');
+                }
+
             } catch (e) {
-                console.error('Native permission request failed', e);
+                console.error('[Notifications] Permission request failed:', e);
+                setPermission('denied');
             }
         } else {
             try {
@@ -153,7 +195,7 @@ export function useNotifications(): UseNotificationsReturn {
 
             if (isNativeApp()) {
                 // Determine channel based on simplistic logic or default
-                const channelId = 'prayer_channel_default';
+                const channelId = 'prayer_alert_v2';
 
                 // For native, we just schedule it 1s in future as "immediate"
                 await LocalNotifications.schedule({
@@ -162,8 +204,8 @@ export function useNotifications(): UseNotificationsReturn {
                         body: options?.body || '',
                         id: Math.floor(Date.now() / 1000), // Random ID for immediate
                         schedule: { at: new Date(Date.now() + 100) },
-                        sound: 'alert.mp3',
-                        smallIcon: 'ic_stat_icon_config_sample',
+                        sound: 'alert', // Without extension
+                        smallIcon: 'ic_stat_prayer', // Custom notification icon
                         channelId,
                         actionTypeId: '',
                         extra: null
@@ -235,12 +277,15 @@ export function useNotifications(): UseNotificationsReturn {
             if (isNativeApp()) {
                 const id = generateNotificationId(prayerId, type);
 
-                // Determine Channel ID based on sound file
-                let channelId = 'prayer_channel_default';
+                // Determine Channel ID based on sound file (v2 channels)
+                let channelId = 'prayer_alert_v2';
+                let soundName = 'alert'; // Default sound without extension
                 if (sound?.includes('adhan')) {
-                    channelId = 'prayer_channel_adhan';
+                    channelId = 'prayer_adhan_v2';
+                    soundName = 'adhan';
                 } else if (sound?.includes('gentle')) {
-                    channelId = 'prayer_channel_gentle';
+                    channelId = 'prayer_gentle_v2';
+                    soundName = 'gentle';
                 }
 
                 try {
@@ -250,8 +295,8 @@ export function useNotifications(): UseNotificationsReturn {
                             body: options.body || '',
                             id,
                             schedule: { at: time, allowWhileIdle: true },
-                            sound: sound || 'adhan.mp3',
-                            smallIcon: 'ic_stat_icon_config_sample',
+                            sound: soundName, // Without extension for Android
+                            smallIcon: 'ic_stat_prayer', // Custom notification icon
                             channelId,
                         }]
                     });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Book, Clock, ExternalLink, Settings } from 'lucide-react';
@@ -11,36 +11,59 @@ import { useAlarmSound } from '@/hooks/useAlarmSound';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
 import { usePrayerReminder } from '@/hooks/usePrayerReminder';
-import { useWidgetSync } from '@/hooks/useWidgetSync'; // Enabled
-import { isNativeApp } from '@/lib/platform'; // Import Platform Check
+import { useWidgetSync } from '@/hooks/useWidgetSync';
+import { isNativeApp } from '@/lib/platform';
+import { getHijriDateString } from '@/lib/hijri';
 import { PrayerRow } from '@/components/PrayerRow';
-import { DownloadAppSection } from '@/components/DownloadAppSection'; // Import
-import { OnboardingWizard } from '@/components/OnboardingWizard';
 import styles from './page.module.css';
 
 export default function Home() {
   const { settings } = useAlarmSettings();
   const { prayers: todayPrayers, nextPrayer, timeRemaining, currentDate, isLoading } = usePrayerTimes({ format: settings.timeFormat });
-  const { isPrayerDone, togglePrayer, completedCount, totalCount } = usePrayerTracker();
   const { currentPage, markPageRead, quranComUrl } = useQuranProgress();
   const { permission, scheduleNotification, cancelNotification } = useNotifications();
   const { selectedSound } = useAlarmSound();
 
   // Day Navigation State (-1: Yesterday, 0: Today, 1: Tomorrow)
-  // We can expand range if needed, but UI specified Yesterday/Tomorrow
   const [dayOffset, setDayOffset] = useState(0);
+
+  // Calculate target date based on offset
+  const targetDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + dayOffset);
+    return d;
+  }, [dayOffset]);
+
+  // Prayer tracker now uses the selected date
+  const { isPrayerDone, togglePrayer, completedCount, totalCount } = usePrayerTracker(targetDate);
+
+  /**
+   * Toggle prayer and immediately cancel/reschedule notifications
+   * This ensures notifications are cancelled the moment user marks prayer as done
+   */
+  const handleTogglePrayer = useCallback((prayerId: string) => {
+    const wasDone = isPrayerDone(prayerId);
+
+    // Toggle the prayer status
+    togglePrayer(prayerId as 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha');
+
+    // If prayer wasn't done and now will be marked as done -> cancel notifications
+    if (!wasDone) {
+      cancelNotification(prayerId, 'atTime');
+      cancelNotification(prayerId, 'beforeEnd');
+      console.log(`[Notifications] Cancelled for ${prayerId} (marked as done)`);
+    }
+    // If prayer was done and now will be unmarked -> useEffect will reschedule
+  }, [isPrayerDone, togglePrayer, cancelNotification]);
 
   // Sync data to native widget - ENABLED
   useWidgetSync(todayPrayers, currentDate.toLocaleDateString('ar-JO'), nextPrayer);
 
   // Determine which prayers to show based on selected day
-  const displayedPrayers = dayOffset === 0
-    ? todayPrayers
-    : (() => {
-      const targetDate = new Date();
-      targetDate.setDate(targetDate.getDate() + dayOffset);
-      return getPrayersForDate(targetDate, settings.timeFormat);
-    })();
+  const displayedPrayers = useMemo(() => {
+    if (dayOffset === 0) return todayPrayers;
+    return getPrayersForDate(targetDate, settings.timeFormat);
+  }, [dayOffset, todayPrayers, targetDate, settings.timeFormat]);
 
   const getDayLabel = (offset: number) => {
     if (offset === 0) return 'اليوم';
@@ -179,10 +202,49 @@ export default function Home() {
     );
   }
 
-  // Simple Web View - Only shows today's prayer times + countdown
+  // Simple Web View - Only shows today's prayer times + countdown + download banner
   if (!isNativeApp()) {
     return (
       <div className={styles.container}>
+        {/* Fixed Download Banner */}
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: '#14b8a6',
+          color: 'white',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          zIndex: 1000,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+        }}>
+          <div style={{ flex: 1, fontSize: '14px' }}>
+            <strong>📱 حمّل التطبيق</strong> • تتبع صلواتك • تنبيهات بصوت الأذان • ويدجت ذكي
+          </div>
+          <a
+            href="https://github.com/MahmoudAlsaht/noor-alsalah/releases/latest/download/noor-alsalah.apk"
+            style={{
+              backgroundColor: 'white',
+              color: '#14b8a6',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              textDecoration: 'none',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            تحميل APK
+          </a>
+        </div>
+
+        {/* Spacer for fixed banner */}
+        <div style={{ height: '60px' }} />
+
         {/* Header with Logo */}
         <header className={styles.header}>
           <Image
@@ -194,6 +256,20 @@ export default function Home() {
           />
           <h1 className={styles.title}>نور الصلاة</h1>
           <p className={styles.subtitle}>إربد، الأردن</p>
+          {/* Date Display - Hijri + Gregorian */}
+          <div style={{
+            marginTop: '8px',
+            textAlign: 'center',
+            fontSize: '0.85rem',
+            opacity: 0.9
+          }}>
+            <div style={{ color: '#14b8a6', fontWeight: 'bold' }}>
+              {getHijriDateString(currentDate)}
+            </div>
+            <div style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '2px' }}>
+              {currentDate.toLocaleDateString('ar-JO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
+          </div>
         </header>
 
         {/* Next Prayer Card */}
@@ -215,26 +291,57 @@ export default function Home() {
         <section className={`card ${styles.prayerList}`}>
           <div className={styles.sectionHeader} style={{ marginBottom: 0, paddingBottom: '1rem' }}>
             <h3>مواقيت الصلاة</h3>
+            <span className="text-secondary" style={{ fontSize: '0.8rem' }}>
+              {currentDate.toLocaleDateString('ar-JO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </span>
           </div>
           <div className={styles.prayerRows}>
             {todayPrayers.map((prayer) => (
-              <PrayerRow
+              <div
                 key={prayer.id}
-                prayer={prayer}
-                isDone={false}
-                isNext={nextPrayer?.id === prayer.id}
-                currentTime={currentDate}
-                onToggle={() => { }}
-                readOnly={true}
-              />
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 0',
+                  borderBottom: '1px solid rgba(255,255,255,0.1)',
+                  backgroundColor: nextPrayer?.id === prayer.id ? 'rgba(20, 184, 166, 0.15)' : 'transparent',
+                  borderRadius: nextPrayer?.id === prayer.id ? '8px' : 0,
+                  paddingLeft: nextPrayer?.id === prayer.id ? '12px' : 0,
+                  paddingRight: nextPrayer?.id === prayer.id ? '12px' : 0,
+                }}
+              >
+                <span style={{ fontWeight: nextPrayer?.id === prayer.id ? 'bold' : 'normal' }}>
+                  {prayer.nameAr}
+                  {nextPrayer?.id === prayer.id && <span style={{ marginRight: '8px', color: '#14b8a6' }}>● التالية</span>}
+                </span>
+                <span style={{ opacity: 0.8 }}>{prayer.timeFormatted}</span>
+              </div>
             ))}
           </div>
         </section>
 
-        {/* Download App Section */}
-        <DownloadAppSection />
-
-        <OnboardingWizard />
+        {/* Download Section at Bottom */}
+        <section className="card" style={{ textAlign: 'center', padding: '24px' }}>
+          <h3 style={{ marginBottom: '12px' }}>🕌 حمّل تطبيق نور الصلاة</h3>
+          <p className="text-secondary" style={{ marginBottom: '16px', fontSize: '14px' }}>
+            تتبع صلواتك • تنبيهات بصوت الأذان • ويدجت للشاشة الرئيسية
+          </p>
+          <a
+            href="https://github.com/MahmoudAlsaht/noor-alsalah/releases/latest/download/noor-alsalah.apk"
+            className="btn btn-primary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '14px 28px',
+              fontSize: '16px'
+            }}
+          >
+            <ExternalLink size={18} />
+            تحميل للأندرويد
+          </a>
+        </section>
       </div>
     );
   }
@@ -253,6 +360,20 @@ export default function Home() {
         />
         <h1 className={styles.title}>نور الصلاة</h1>
         <p className={styles.subtitle}>إربد، الأردن</p>
+
+        {/* Date Display - Hijri + Gregorian */}
+        <div style={{
+          marginTop: '8px',
+          textAlign: 'center',
+          fontSize: '0.85rem',
+        }}>
+          <div style={{ color: '#14b8a6', fontWeight: 'bold' }}>
+            {getHijriDateString(currentDate)}
+          </div>
+          <div style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '2px' }}>
+            {currentDate.toLocaleDateString('ar-JO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </div>
+        </div>
 
         {/* Settings Link */}
         <Link href="/settings" className={styles.settingsBtn}>
@@ -308,7 +429,7 @@ export default function Home() {
               isDone={dayOffset === 0 ? isPrayerDone(prayer.id) : false}
               isNext={dayOffset === 0 && nextPrayer?.id === prayer.id}
               currentTime={currentDate}
-              onToggle={togglePrayer}
+              onToggle={handleTogglePrayer}
               readOnly={dayOffset !== 0}
             />
           ))}
@@ -339,8 +460,6 @@ export default function Home() {
           </button>
         </div>
       </section>
-
-      <OnboardingWizard />
-    </div >
+    </div>
   );
 }

@@ -177,15 +177,30 @@ export function usePrayerTimes({ format = '12h' }: UsePrayerTimesOptions = {}): 
     const nextPrayer = useMemo(() => {
         const next = prayerTimes.nextPrayer();
 
-        // If it's after Isha, next prayer is Fajr tomorrow (handled by adhan)
+        // If it's after Isha, next prayer is Fajr TOMORROW
         if (next === Prayer.None) {
-            // After Isha - show Fajr for tomorrow
-            return prayers.find((p) => p.id === 'fajr') || null;
+            // Calculate tomorrow's Fajr time
+            const tomorrow = new Date(currentDate);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowTimes = new PrayerTimes(
+                IRBID_COORDINATES,
+                tomorrow,
+                JORDAN_METHOD
+            );
+
+            // Return Fajr with tomorrow's actual time
+            return {
+                id: 'fajr',
+                nameAr: PRAYER_NAMES['fajr'],
+                nameEn: 'Fajr',
+                time: tomorrowTimes.fajr,
+                timeFormatted: formatPrayers(tomorrowTimes, format).find(p => p.id === 'fajr')?.timeFormatted || '',
+            };
         }
 
         const nextId = next.toString().toLowerCase();
         return prayers.find((p) => p.id === nextId) || null;
-    }, [prayers, prayerTimes]);
+    }, [prayers, prayerTimes, currentDate, format]);
 
     // Calculate time remaining
     const timeRemaining = useMemo(() => {
