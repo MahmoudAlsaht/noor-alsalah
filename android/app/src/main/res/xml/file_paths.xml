@@ -4,4 +4,6 @@
     <cache-path name="my_cache_images" path="." />
     <!-- Allow access to cache directory where we download the update -->
     <cache-path name="update_apk" path="." />
+    <files-path name="files" path="." />
+    <external-files-path name="external_files" path="." />
 </paths>

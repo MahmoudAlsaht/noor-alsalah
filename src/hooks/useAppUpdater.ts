@@ -5,6 +5,7 @@ import { App } from '@capacitor/app';
 import { Dialog } from '@capacitor/dialog';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { FileOpener } from '@capacitor-community/file-opener';
+import { Toast } from '@capacitor/toast';
 import { isNativeApp } from '../lib/platform';
 
 // IMPORTANT: Replace this with your actual deployed website URL
@@ -95,13 +96,29 @@ export function useAppUpdater() {
             const path = 'noor-update.apk';
 
             // 1. Download file
+            // Use time timestamp to avoid conflicts
+            const uniquePath = `noor-update-${Date.now()}.apk`;
+
+            await Toast.show({
+                text: 'جاري تنزيل التحديث... يرجى الانتظار ⏳',
+                duration: 'long'
+            });
+
             const download = await Filesystem.downloadFile({
-                path,
-                directory: Directory.Cache,
+                path: uniquePath,
+                directory: Directory.Data, // More persistent than Cache and safer
                 url,
+                progress: true,
             });
 
             if (download.path) {
+                // Confirm install (Avoid freeze feeling)
+                await Dialog.alert({
+                    title: 'تم التنزيل 📦',
+                    message: 'تم تنزيل التحديث بنجاح. سيتم فتح نافذة التثبيت الآن.',
+                    buttonTitle: 'تثبيت'
+                });
+
                 // 2. Open APK to install
                 await FileOpener.open({
                     filePath: download.path,
