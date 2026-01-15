@@ -15,7 +15,7 @@ const UPDATE_HOST = 'https://noor-alsalah.vercel.app'; // Correct URL
 interface VersionInfo {
     version: string;
     build: number;
-    releaseNote: string;
+    notes: string;
     downloadUrl: string;
 }
 
@@ -59,7 +59,7 @@ export function useAppUpdater() {
                 // 4. Prompt user
                 const { value: confirmed } = await Dialog.confirm({
                     title: 'تحديث جديد متوفر 🚀',
-                    message: `إصدار جديد ${remoteInfo.version} متاح.\n\nالجديد: ${remoteInfo.releaseNote}\n\nهل تريد التحميل والتثبيت الآن؟`,
+                    message: `إصدار جديد ${remoteInfo.version} متاح.\n\nالجديد: ${remoteInfo.notes || 'تحسينات عامة'}\n\nهل تريد التحميل والتثبيت الآن؟`,
                     okButtonTitle: 'نعم، حدث الآن',
                     cancelButtonTitle: 'لاحقاً'
                 });

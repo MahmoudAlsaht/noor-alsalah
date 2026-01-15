@@ -207,13 +207,16 @@ export function usePrayerTimes({ format = '12h' }: UsePrayerTimesOptions = {}): 
 
         // If it's after Isha, next prayer is Fajr TOMORROW
         if (next === Prayer.None) {
+            // Get current method with adjustments
+            const method = getMethodWithAdjustments(isLoaded ? adjustments : undefined);
+
             // Calculate tomorrow's Fajr time
             const tomorrow = new Date(currentDate);
             tomorrow.setDate(tomorrow.getDate() + 1);
             const tomorrowTimes = new PrayerTimes(
                 IRBID_COORDINATES,
                 tomorrow,
-                JORDAN_METHOD
+                method // Use dynamic method
             );
 
             // Return Fajr with tomorrow's actual time
@@ -228,7 +231,7 @@ export function usePrayerTimes({ format = '12h' }: UsePrayerTimesOptions = {}): 
 
         const nextId = next.toString().toLowerCase();
         return prayers.find((p) => p.id === nextId) || null;
-    }, [prayers, prayerTimes, currentDate, format]);
+    }, [prayers, prayerTimes, currentDate, format, adjustments, isLoaded]); // Add deps
 
     // Calculate time remaining
     const timeRemaining = useMemo(() => {
@@ -236,16 +239,12 @@ export function usePrayerTimes({ format = '12h' }: UsePrayerTimesOptions = {}): 
 
         let diffSeconds = differenceInSeconds(nextPrayer.time, currentDate);
 
-        // If negative (after Isha), calculate until Fajr tomorrow
-        if (diffSeconds < 0) {
-            const tomorrow = new Date(currentDate);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowTimes = new PrayerTimes(
-                IRBID_COORDINATES,
-                tomorrow,
-                JORDAN_METHOD
-            );
-            diffSeconds = differenceInSeconds(tomorrowTimes.fajr, currentDate);
+        // If negative (shouldn't happen if nextPrayer is correctly set to tomorrow, but for safety)
+        if (diffSeconds < 0 && nextPrayer.id === 'fajr') {
+            // Already handled by nextPrayer logic above, but ensure consistency
+            // In fact, if nextPrayer.time is tomorrow, diffSeconds will be positive.
+            // But if we are in the transition split second?
+            return '00:00:00';
         }
 
         return formatCountdown(diffSeconds);
