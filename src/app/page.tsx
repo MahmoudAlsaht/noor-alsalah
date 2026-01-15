@@ -558,19 +558,21 @@ export default function Home() {
       </section>
 
       {/* Test Alarm Link - For Development */}
-      <Link
-        href="/simple-alarm-test"
-        style={{
-          display: 'block',
-          textAlign: 'center',
-          padding: '12px',
-          color: '#6366f1',
-          fontSize: '14px',
-          marginTop: '20px'
-        }}
-      >
-        ⏰ اختبار المنبه
-      </Link>
+      {process.env.NODE_ENV === 'development' && (
+        <Link
+          href="/simple-alarm-test"
+          style={{
+            display: 'block',
+            textAlign: 'center',
+            padding: '12px',
+            color: '#6366f1',
+            fontSize: '14px',
+            marginTop: '20px'
+          }}
+        >
+          ⏰ اختبار المنبه (DEV)
+        </Link>
+      )}
     </div>
   );
 }
