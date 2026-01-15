@@ -12,8 +12,9 @@ const CUSTOM_SOUND_KEY = 'custom-alarm-sound-url';
  * Available alarm sounds
  */
 export const ALARM_SOUNDS = [
-    { id: 'default', name: 'الافتراضية', url: '/sounds/alarm-default.mp3' },
+    { id: 'default', name: 'الافتراضية', url: '/sounds/alarm-default.mp3' }, // Adhan
     { id: 'gentle', name: 'هادئة', url: '/sounds/alarm-gentle.mp3' },
+    { id: 'system', name: 'نغمة النظام', url: '' }, // System default alarm
     { id: 'custom', name: 'صوت مخصص', url: '' }, // Custom uploaded sound
 ] as const;
 
@@ -61,7 +62,7 @@ function loadSoundPreference(): { sound: AlarmSoundId; customUrl: string | null 
     }
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
-        const sound = (stored && ['default', 'gentle', 'custom'].includes(stored))
+        const sound = (stored && ['default', 'gentle', 'system', 'custom'].includes(stored))
             ? (stored as AlarmSoundId)
             : 'default';
         const customUrl = localStorage.getItem(CUSTOM_SOUND_KEY);

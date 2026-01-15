@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { isNativeApp } from '@/lib/platform';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 interface ScheduledItem {
     prayer: string;
@@ -17,6 +18,7 @@ export default function TestNotifications() {
     const [mounted, setMounted] = useState(false);
     const [scheduledItems, setScheduledItems] = useState<ScheduledItem[]>([]);
     const [countdown, setCountdown] = useState<number | null>(null);
+    const [pendingCount, setPendingCount] = useState<number | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
@@ -153,6 +155,23 @@ export default function TestNotifications() {
         setStatus('تم مسح القائمة');
     };
 
+    const showPendingNotifications = async () => {
+        if (!isNativeApp()) {
+            setStatus('هذا الاختبار يعمل فقط على التطبيق');
+            return;
+        }
+        try {
+            const pending = await LocalNotifications.getPending();
+            const count = pending.notifications.length;
+            setPendingCount(count);
+            setStatus(`📋 ${count} تنبيهات مجدولة في النظام`);
+            console.log('[Debug] Pending notifications:', pending.notifications);
+        } catch (e) {
+            console.error('Failed to get pending', e);
+            setStatus('فشل في قراءة التنبيهات المعلقة');
+        }
+    };
+
     return (
         <div style={{
             padding: 20,
@@ -178,6 +197,17 @@ export default function TestNotifications() {
                         ⏱️ التنبيه القادم بعد: <strong>{countdown}</strong> ثانية
                     </p>
                 )}
+                {pendingCount !== null && (
+                    <p style={{ color: '#10b981' }}>
+                        📋 <strong>{pendingCount}</strong> تنبيهات مجدولة في النظام
+                    </p>
+                )}
+                <button
+                    onClick={showPendingNotifications}
+                    style={{ ...buttonStyle('#6366f1'), marginTop: 10 }}
+                >
+                    🔍 عرض التنبيهات المجدولة
+                </button>
             </div>
 
             {/* Single Tests */}

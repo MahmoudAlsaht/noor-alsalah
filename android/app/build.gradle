@@ -2,8 +2,8 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
 android {
-    namespace = "com.nooralsalah.family"
-    compileSdk = rootProject.ext.compileSdkVersion
+    namespace "com.nooralsalah.family"
+    compileSdkVersion rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.nooralsalah.family"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -14,16 +14,13 @@ android {
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
-        debug {
-            versionNameSuffix "-DEV"
         }
     }
 }
@@ -35,6 +32,7 @@ repositories {
 }
 
 dependencies {
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.0')
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
@@ -53,6 +51,6 @@ try {
     if (servicesJSON.text) {
         apply plugin: 'com.google.gms.google-services'
     }
-} catch(Exception e) {
+} catch (Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }

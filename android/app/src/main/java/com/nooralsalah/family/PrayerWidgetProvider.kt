@@ -122,11 +122,13 @@ internal fun updateAppWidget(
             views.setTextViewText(R.id.widget_city, city)
             views.setTextViewText(R.id.widget_date, date)
             
-            // Hijri Date - with fallback
-            val hijriDate = data.optString("hijriDate", "")
-            if (hijriDate.isNotEmpty()) {
-                views.setTextViewText(R.id.widget_hijri_date, hijriDate)
-            }
+            // Hijri Date - try Native first, then stored
+            val storedHijri = data.optString("hijriDate", "")
+            val finalHijri = getHijriDateNative(storedHijri)
+            views.setTextViewText(R.id.widget_hijri_date, finalHijri)
+            
+            // Also update Gregorian Date Natively if needed
+            // val date = ... (Keep current logic for Gregorian as it's simple)
             
             views.setTextViewText(R.id.widget_next_label, "الصلاة القادمة")
 
@@ -184,4 +186,47 @@ internal fun updateAppWidget(
     }
 
     appWidgetManager.updateAppWidget(appWidgetId, views)
+}
+
+/**
+ * Get Hijri Date Natively (API 26+)
+ * Fallback to stored string if API < 26
+ */
+private fun getHijriDateNative(storedDate: String?): String {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        try {
+            val hijrahDate = java.time.chrono.HijrahDate.now()
+            val day = hijrahDate.get(java.time.temporal.ChronoField.DAY_OF_MONTH)
+            val month = hijrahDate.get(java.time.temporal.ChronoField.MONTH_OF_YEAR)
+            val year = hijrahDate.get(java.time.temporal.ChronoField.YEAR)
+
+            val months = arrayOf(
+                "محرم", "صفر", "ربيع الأول", "ربيع الآخر",
+                "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان",
+                "رمضان", "شوال", "ذو القعدة", "ذو الحجة"
+            )
+
+            // Basic formatting
+            val monthName = if (month in 1..12) months[month - 1] else month.toString()
+            
+            // Adjust to mimic Arabic numerals if needed, but simple string is safer mostly
+            return toArabicNumerals("$day $monthName $year هـ")
+        } catch (e: Exception) {
+            // Fallback
+        }
+    }
+    return storedDate ?: "--"
+}
+
+private fun toArabicNumerals(str: String): String {
+    return str.replace("0", "٠")
+        .replace("1", "١")
+        .replace("2", "٢")
+        .replace("3", "٣")
+        .replace("4", "٤")
+        .replace("5", "٥")
+        .replace("6", "٦")
+        .replace("7", "٧")
+        .replace("8", "٨")
+        .replace("9", "٩")
 }

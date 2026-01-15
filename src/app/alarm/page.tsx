@@ -1,10 +1,17 @@
 'use client';
 
-import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { isNativeApp } from '@/lib/platform';
+import { registerPlugin } from '@capacitor/core';
 import styles from './alarm.module.css';
+
+// Native Alarm Plugin Interface
+interface AlarmSchedulerPlugin {
+    stopAlarmSound(): Promise<void>;
+}
+const AlarmScheduler = registerPlugin<AlarmSchedulerPlugin>('AlarmScheduler');
 
 const PRAYER_NAMES: Record<string, string> = {
     fajr: 'الفجر',
@@ -39,20 +46,25 @@ function AlarmContent() {
 
     const [currentTime, setCurrentTime] = useState('');
 
-    // Get sound URL
+    // Get sound URL based on settings or query parameter
     const getSoundUrl = () => {
+        // Check for sound in query params (for testing)
+        const soundParam = searchParams.get('sound');
+        if (soundParam) {
+            return `/sounds/${soundParam}.mp3`;
+        }
+
         try {
-            const selectedSound = localStorage.getItem(STORAGE_KEY) || 'default';
-            if (selectedSound === 'custom') {
-                const customUrl = localStorage.getItem(CUSTOM_SOUND_KEY);
-                if (customUrl) return customUrl;
-            } else if (selectedSound === 'gentle') {
-                return '/sounds/alarm-gentle.mp3';
+            const selectedSound = localStorage.getItem(STORAGE_KEY) || 'adhan';
+            if (selectedSound === 'gentle') {
+                return '/sounds/gentle.mp3';
+            } else if (selectedSound === 'alert') {
+                return '/sounds/alert.mp3';
             }
         } catch {
             // Use default
         }
-        return '/sounds/alarm-default.mp3';
+        return '/sounds/adhan.mp3';
     };
 
     // Update time every second
@@ -68,10 +80,12 @@ function AlarmContent() {
         return () => clearInterval(interval);
     }, []);
 
-    const handleStop = useCallback(() => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
+    const handleStop = useCallback(async () => {
+        try {
+            // Stop native sound
+            await AlarmScheduler.stopAlarmSound();
+        } catch (e) {
+            console.error('Failed to stop native alarm:', e);
         }
         router.push('/');
     }, [router]);
@@ -106,14 +120,6 @@ function AlarmContent() {
 
     return (
         <div className={styles.container}>
-            {/* Hidden Audio Element */}
-            <audio
-                ref={handleAudioRef}
-                src={getSoundUrl()}
-                loop
-                preload="auto"
-            />
-
             {/* Background Glow */}
             <div className={styles.glow} />
 

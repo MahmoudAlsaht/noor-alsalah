@@ -150,9 +150,34 @@ interface UsePrayerTimesOptions {
     format?: '12h' | '24h';
 }
 
+import { usePrayerAdjustments, PrayerAdjustments } from './usePrayerAdjustments';
+
+// ... (existing imports)
+
+/**
+ * Get calculation method with dynamic adjustments
+ */
+function getMethodWithAdjustments(adjustments?: PrayerAdjustments): CalculationParameters {
+    const params = new CalculationParameters('Other', 18, 18);
+
+    // Use provided adjustments OR default Jordan ones
+    // Note: usePrayerAdjustments handles the defaults (including maghrib: 4)
+    if (adjustments) {
+        params.adjustments = adjustments;
+    } else {
+        // Fallback if not loaded yet
+        params.adjustments = { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 4, isha: 0 };
+    }
+
+    return params;
+}
+
 export function usePrayerTimes({ format = '12h' }: UsePrayerTimesOptions = {}): UsePrayerTimesReturn {
     const [currentDate, setCurrentDate] = useState(() => new Date());
-    const [isLoading] = useState(false); // Ready immediately
+    const [isLoading] = useState(false);
+
+    // Load adjustments
+    const { adjustments, isLoaded } = usePrayerAdjustments();
 
     // Update current date every second for countdown
     useEffect(() => {
@@ -163,10 +188,13 @@ export function usePrayerTimes({ format = '12h' }: UsePrayerTimesOptions = {}): 
         return () => clearInterval(interval);
     }, []);
 
-    // Calculate prayer times for today (recalc when date changes)
+    // Calculate prayer times with Dynamic Adjustments
     const prayerTimes = useMemo(() => {
-        return new PrayerTimes(IRBID_COORDINATES, currentDate, JORDAN_METHOD);
-    }, [currentDate]);
+        // Only calculate if adjustments are loaded to avoid jumps
+        // But for SSR/initial render, use defaults
+        const method = getMethodWithAdjustments(isLoaded ? adjustments : undefined);
+        return new PrayerTimes(IRBID_COORDINATES, currentDate, method);
+    }, [currentDate, adjustments, isLoaded]);
 
     // Format prayers into array
     const prayers: PrayerTimeEntry[] = useMemo(() => {

@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, Bell, Clock, Volume2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
 import { useAlarmSound, ALARM_SOUNDS } from '@/hooks/useAlarmSound';
 import { useAppUpdater } from '@/hooks/useAppUpdater';
 import { isNativeApp } from '@/lib/platform';
+import { hapticFeedback } from '@/lib/haptics';
+import { usePrayerAdjustments, PrayerAdjustments } from '@/hooks/usePrayerAdjustments';
+import { Sliders, RefreshCw, Save } from 'lucide-react';
 // DownloadAppSection removed - not needed in native app settings
 import styles from './settings.module.css';
 
@@ -18,6 +21,114 @@ const PRAYER_LABELS: Record<string, string> = {
     maghrib: 'المغرب',
     isha: 'العشاء',
 };
+
+
+function PrayerAdjustmentSection() {
+    const { adjustments, saveAdjustments, resetDefaults, isLoaded } = usePrayerAdjustments();
+    const [localAdjustments, setLocalAdjustments] = useState<PrayerAdjustments | null>(null);
+    const [isDirty, setIsDirty] = useState(false);
+
+    useEffect(() => {
+        if (isLoaded && !localAdjustments) {
+            setLocalAdjustments(adjustments);
+        }
+    }, [isLoaded, adjustments]);
+
+    if (!localAdjustments) return <div className="card loading">جاري التحميل...</div>;
+
+    const handleChange = (prayer: keyof PrayerAdjustments, change: number) => {
+        setLocalAdjustments(prev => {
+            if (!prev) return null;
+            return { ...prev, [prayer]: prev[prayer] + change };
+        });
+        setIsDirty(true);
+        hapticFeedback('light');
+    };
+
+    const handleSave = () => {
+        if (localAdjustments) {
+            hapticFeedback('medium');
+            saveAdjustments(localAdjustments);
+            window.location.reload();
+        }
+    };
+
+    const prayersList = [
+        { key: 'fajr', label: 'الفجر' },
+        { key: 'sunrise', label: 'الشروق' },
+        { key: 'dhuhr', label: 'الظهر' },
+        { key: 'asr', label: 'العصر' },
+        { key: 'maghrib', label: 'المغرب' },
+        { key: 'isha', label: 'العشاء' },
+    ] as const;
+
+    return (
+        <section className={`card ${styles.section}`}>
+            <div className={styles.sectionHeader}>
+                <Sliders size={20} />
+                <h2>تصحيح المواقيت (دقائق)</h2>
+            </div>
+            <p className={styles.note} style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
+                قم بزيادة أو إنقاص الدقائق لمطابقة الأذان في منطقتك.
+                <br />
+                <strong>ملاحظة:</strong> يتم إضافة 4 دقائق تلقائياً للمغرب لتوافق تقويم <strong>وزارة الأوقاف الأردنية</strong> (احتياطاً بعد الغروب الفلكي).
+                <br />
+                جميع المواقيت مضبوطة حسب التوقيت المحلي للأردن (GMT+3).
+            </p>
+
+            {prayersList.map(({ key, label }) => (
+                <div key={key} className={styles.prayerRow} style={{ padding: '0.8rem 0' }}>
+                    <div className={styles.prayerInfo}>
+                        <span className={styles.prayerName}>{label}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <button
+                            className="btn-icon"
+                            style={{ background: '#334155', width: '30px', height: '30px', borderRadius: '50%' }}
+                            onClick={() => handleChange(key, -1)}
+                        >-</button>
+
+                        <span style={{ minWidth: '30px', textAlign: 'center', fontWeight: 'bold', direction: 'ltr' }}>
+                            {localAdjustments[key] > 0 ? `+${localAdjustments[key]}` : localAdjustments[key]}
+                        </span>
+
+                        <button
+                            className="btn-icon"
+                            style={{ background: '#334155', width: '30px', height: '30px', borderRadius: '50%' }}
+                            onClick={() => handleChange(key, 1)}
+                        >+</button>
+                    </div>
+                </div>
+            ))}
+
+            {isDirty && (
+                <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+                    <button
+                        className="btn btn-primary"
+                        style={{ flex: 1, justifyContent: 'center' }}
+                        onClick={handleSave}
+                    >
+                        <Save size={18} style={{ marginLeft: '0.5rem' }} />
+                        حفظ وإعادة التشغيل
+                    </button>
+
+                    <button
+                        className="btn"
+                        style={{ background: '#475569' }}
+                        onClick={() => {
+                            if (confirm('هل تريد استعادة القيم الافتراضية؟')) {
+                                resetDefaults();
+                                window.location.reload();
+                            }
+                        }}
+                    >
+                        <RefreshCw size={18} />
+                    </button>
+                </div>
+            )}
+        </section>
+    );
+}
 
 export default function SettingsPage() {
     const { settings, updatePrayerSetting, setTimeFormat } = useAlarmSettings();
@@ -65,9 +176,10 @@ export default function SettingsPage() {
                                 <input
                                     type="checkbox"
                                     checked={settings[prayer].enabled}
-                                    onChange={(e) =>
-                                        updatePrayerSetting(prayer, { enabled: e.target.checked })
-                                    }
+                                    onChange={(e) => {
+                                        hapticFeedback('light');
+                                        updatePrayerSetting(prayer, { enabled: e.target.checked });
+                                    }}
                                 />
                                 <span className={styles.toggleSlider}></span>
                             </label>
@@ -190,7 +302,7 @@ export default function SettingsPage() {
                 <div style={{ marginTop: '0.5rem' }}>
                     <button
                         className="btn btn-primary"
-                        style={{ width: '100%', padding: '1rem', justifyContent: 'center', backgroundColor: '#059669' }} // Emerald color for 0.1.16 test
+                        style={{ width: '100%', padding: '1rem', justifyContent: 'center', backgroundColor: '#059669' }}
                         onClick={() => checkForUpdate(true)}
                         disabled={isChecking}
                     >
@@ -199,34 +311,39 @@ export default function SettingsPage() {
                 </div>
             </section>
 
+            {/* Prayer Time Adjustments */}
+            <PrayerAdjustmentSection />
+
             {/* Dev Tools (Development Only - Hidden in Production) */}
-            {process.env.NODE_ENV === 'development' && (
-                <section className={`card ${styles.section}`} style={{ borderColor: '#f59e0b' }}>
-                    <div className={styles.sectionHeader}>
-                        <Bell size={20} />
-                        <h2>أدوات المطور</h2>
-                    </div>
-                    <Link
-                        href="/test-notifications"
-                        className="btn btn-primary"
-                        style={{
-                            width: '100%',
-                            padding: '1rem',
-                            justifyContent: 'center',
-                            backgroundColor: '#f59e0b',
-                            textDecoration: 'none',
-                            display: 'flex'
-                        }}
-                    >
-                        🔔 محاكاة التنبيهات (اختبار)
-                    </Link>
-                </section>
-            )}
+            {
+                process.env.NODE_ENV === 'development' && (
+                    <section className={`card ${styles.section}`} style={{ borderColor: '#f59e0b' }}>
+                        <div className={styles.sectionHeader}>
+                            <Bell size={20} />
+                            <h2>أدوات المطور</h2>
+                        </div>
+                        <Link
+                            href="/test-notifications"
+                            className="btn btn-primary"
+                            style={{
+                                width: '100%',
+                                padding: '1rem',
+                                justifyContent: 'center',
+                                backgroundColor: '#f59e0b',
+                                textDecoration: 'none',
+                                display: 'flex'
+                            }}
+                        >
+                            🔔 محاكاة التنبيهات (اختبار)
+                        </Link>
+                    </section>
+                )
+            }
 
             {/* App Version Info */}
             <p className="text-secondary" style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem' }}>
                 إصدار التطبيق: {currentVersion || '...'}
             </p>
-        </div>
+        </div >
     );
 }

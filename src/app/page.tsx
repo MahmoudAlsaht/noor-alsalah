@@ -12,7 +12,9 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
 import { usePrayerReminder } from '@/hooks/usePrayerReminder';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
+import { useOverlayPermission } from '@/hooks/useOverlayPermission';
 import { isNativeApp } from '@/lib/platform';
+import { hapticFeedback } from '@/lib/haptics';
 import { getHijriDateString } from '@/lib/hijri';
 import { PrayerRow } from '@/components/PrayerRow';
 import styles from './page.module.css';
@@ -22,7 +24,9 @@ export default function Home() {
   const { prayers: todayPrayers, nextPrayer, timeRemaining, currentDate, isLoading } = usePrayerTimes({ format: settings.timeFormat });
   const { currentPage, markPageRead, quranComUrl } = useQuranProgress();
   const { permission, scheduleNotification, cancelNotification } = useNotifications();
+
   const { selectedSound } = useAlarmSound();
+  const { granted: overlayGranted, requestPermission: requestOverlay } = useOverlayPermission();
 
   // Day Navigation State (-1: Yesterday, 0: Today, 1: Tomorrow)
   const [dayOffset, setDayOffset] = useState(0);
@@ -99,15 +103,18 @@ export default function Home() {
 
   // Schedule notifications for upcoming prayers
   useEffect(() => {
+    console.log('[Scheduler] Permission:', permission, 'Prayers:', todayPrayers.length);
     if (permission !== 'granted' || todayPrayers.length === 0) return;
+    console.log('[Scheduler] Starting scheduling for', todayPrayers.filter(p => p.id !== 'sunrise').length, 'prayers');
 
-    // Map sound ID to actual filename for Native
+    // Map sound ID to ID expected by useNotifications
     const soundMapping: Record<string, string> = {
-      default: 'adhan.mp3',
-      gentle: 'gentle.mp3',
-      custom: 'adhan.mp3',
+      default: 'adhan',
+      gentle: 'gentle',
+      system: 'system',
+      custom: 'alert', // Fallback for custom
     };
-    const soundFile = soundMapping[selectedSound] || 'adhan.mp3';
+    const soundFile = soundMapping[selectedSound] || 'adhan';
 
     todayPrayers.forEach((prayer, index) => {
       // Only schedule for trackable prayers (not sunrise)
@@ -138,15 +145,23 @@ export default function Home() {
 
       // Schedule AT TIME notification (if timing is 'atTime' or 'both')
       if (timing === 'atTime' || timing === 'both') {
-        scheduleNotification(
-          `حان وقت صلاة ${prayer.nameAr}`,
-          { body: 'حي على الصلاة 🕌', tag: prayer.id },
-          prayer.time,
-          prayer.id,
-          'atTime',
-          onFireCallback,
-          soundFile
-        );
+        const now = new Date();
+        const delay = prayer.time.getTime() - now.getTime();
+
+        if (delay > 0) {
+          console.log(`[Scheduler] ✅ Scheduling ${prayer.id} atTime for ${prayer.time.toLocaleTimeString()} (in ${Math.round(delay / 60000)} min)`);
+          scheduleNotification(
+            `حان وقت صلاة ${prayer.nameAr}`,
+            { body: 'حي على الصلاة 🕌', tag: prayer.id },
+            prayer.time,
+            prayer.id,
+            'atTime',
+            onFireCallback,
+            soundFile
+          );
+        } else {
+          console.log(`[Scheduler] ⏭️ Skipping ${prayer.id} atTime - already passed (${Math.round(-delay / 60000)} min ago)`);
+        }
       } else {
         cancelNotification(prayer.id, 'atTime');
       }
@@ -170,6 +185,7 @@ export default function Home() {
 
           // Only schedule if beforeEndTime is in the future
           if (beforeEndTime.getTime() > Date.now()) {
+            console.log(`[Scheduler] ✅ Scheduling ${prayer.id} beforeEnd for ${beforeEndTime.toLocaleTimeString()} (${beforeEndMinutes} min before next)`);
             scheduleNotification(
               `تذكير: صلاة ${prayer.nameAr}`,
               { body: `باقي ${beforeEndMinutes} دقيقة على خروج الوقت ⏰`, tag: `${prayer.id}-beforeEnd` },
@@ -177,15 +193,50 @@ export default function Home() {
               prayer.id,
               'beforeEnd',
               onFireCallback,
-              soundFile
+              'alert' // Use simple alert sound for reminders, not Adhan
             );
+          } else {
+            console.log(`[Scheduler] ⏭️ Skipping ${prayer.id} beforeEnd - already passed`);
           }
         }
       } else {
         cancelNotification(prayer.id, 'beforeEnd');
       }
+      // Existing loop for todayPrayers calls scheduleNotification...
     });
-  }, [todayPrayers, permission, scheduleNotification, cancelNotification, isPrayerDone, settings, selectedSound]);
+
+    // CRITICAl FIX: Schedule Next Prayer if it belongs to tomorrow (e.g. Fajr)
+    // todayPrayers only covers until midnight usually. We need to ensure the immediate next prayer is ALWAYS scheduled.
+    if (nextPrayer) {
+      // Check if nextPrayer is already covered by todayPrayers logic (same day and future)
+      // If nextPrayer is tomorrow, it won't be in the loop above (or delay < 0 for today's instance)
+      const isNextPrayerTomorrow = nextPrayer.time.getDate() !== new Date().getDate();
+
+      if (isNextPrayerTomorrow) {
+        const prayerSettings = settings[nextPrayer.id as keyof typeof settings];
+        if (typeof prayerSettings === 'object' && prayerSettings.enabled && !isPrayerDone(nextPrayer.id)) { // isPrayerDone might need date context? Usually assumes today. For tomorrow, it's definitely not done.
+
+          const soundFile = soundMapping[selectedSound] || 'adhan.mp3';
+          const onFireCallback = () => { window.location.href = `/alarm?prayer=${nextPrayer.id}`; };
+
+          // Schedule AT TIME
+          if (prayerSettings.timing === 'atTime' || prayerSettings.timing === 'both') {
+            console.log(`[Scheduler] 🌙 Scheduling TOMORROW ${nextPrayer.id} at ${nextPrayer.timeFormatted}`);
+            scheduleNotification(
+              `حان وقت صلاة ${nextPrayer.nameAr}`,
+              { body: 'حي على الصلاة 🕌', tag: `${nextPrayer.id}-tomorrow` },
+              nextPrayer.time,
+              nextPrayer.id,
+              'atTime',
+              onFireCallback,
+              soundFile
+            );
+          }
+        }
+      }
+    }
+
+  }, [todayPrayers, nextPrayer, permission, scheduleNotification, cancelNotification, isPrayerDone, settings, selectedSound]);
 
   // Fix Hydration Mismatch
   const [isMounted, setIsMounted] = useState(false);
@@ -375,11 +426,50 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Settings Link */}
         <Link href="/settings" className={styles.settingsBtn}>
           <Settings size={20} />
         </Link>
       </header>
+
+      {/* Permission Warning Banner (Native Only) */}
+      {!overlayGranted && (
+        <div
+          style={{
+            backgroundColor: '#fff7ed',
+            border: '1px solid #fdba74',
+            borderRadius: '8px',
+            padding: '12px',
+            marginBottom: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#c2410c' }}>
+            <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+            <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>مطلوب إذن للمنبه</span>
+          </div>
+          <p style={{ fontSize: '0.85rem', color: '#9a3412', margin: 0 }}>
+            لضمان عمل المنبه وأنت نائم، يرجى تفعيل إذن "العرض فوق التطبيقات".
+          </p>
+          <button
+            onClick={requestOverlay}
+            style={{
+              backgroundColor: '#f97316',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              fontSize: '0.9rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              alignSelf: 'flex-start'
+            }}
+          >
+            تفعيل الإذن الآن
+          </button>
+        </div>
+      )}
 
       {/* Next Prayer Card */}
       {nextPrayer && (
@@ -414,7 +504,10 @@ export default function Home() {
               key={offset}
               className={`btn ${dayOffset === offset ? 'btn-primary' : 'btn-secondary'}`}
               style={{ flex: 1, padding: '0.5rem', fontSize: '0.9rem' }}
-              onClick={() => setDayOffset(offset)}
+              onClick={() => {
+                hapticFeedback('light');
+                setDayOffset(offset);
+              }}
             >
               {getDayLabel(offset)}
             </button>
@@ -455,11 +548,29 @@ export default function Home() {
             <ExternalLink size={16} />
             اقرأ الآن
           </a>
-          <button className="btn btn-primary" onClick={markPageRead}>
+          <button className="btn btn-primary" onClick={() => {
+            hapticFeedback('light');
+            markPageRead();
+          }}>
             تم القراءة
           </button>
         </div>
       </section>
+
+      {/* Test Alarm Link - For Development */}
+      <Link
+        href="/simple-alarm-test"
+        style={{
+          display: 'block',
+          textAlign: 'center',
+          padding: '12px',
+          color: '#6366f1',
+          fontSize: '14px',
+          marginTop: '20px'
+        }}
+      >
+        ⏰ اختبار المنبه
+      </Link>
     </div>
   );
 }

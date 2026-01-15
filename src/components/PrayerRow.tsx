@@ -2,6 +2,7 @@
 
 import { type PrayerTimeEntry } from '@/hooks/usePrayerTimes';
 import { type TrackablePrayer, TRACKABLE_PRAYERS } from '@/hooks/usePrayerTracker';
+import { hapticFeedback } from '@/lib/haptics';
 import styles from './PrayerRow.module.css';
 
 interface PrayerRowProps {
@@ -29,6 +30,7 @@ export function PrayerRow({ prayer, isDone, isNext, currentTime, onToggle, readO
 
     const handleCheckboxChange = () => {
         if (canMarkAsDone) {
+            hapticFeedback('medium'); // اهتزاز عند التأشير
             onToggle(prayer.id);
         }
     };

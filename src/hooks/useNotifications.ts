@@ -1,8 +1,23 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { isNativeApp } from '../lib/platform';
+import { registerPlugin } from '@capacitor/core';
+
+// Native Alarm Plugin Interface
+interface AlarmSchedulerPlugin {
+    scheduleAlarm(options: {
+        id: number;
+        triggerTime: number;
+        prayerId: string;
+        prayerName: string;
+        sound: string;
+    }): Promise<{ success: boolean; id: number }>;
+    cancelAlarm(options: { id: number }): Promise<void>;
+}
+
+const AlarmScheduler = registerPlugin<AlarmSchedulerPlugin>('AlarmScheduler');
 
 /**
  * Scheduled notification data (Web)
@@ -49,24 +64,14 @@ function generateNotificationId(prayerId: string, type: string): number {
 }
 
 /**
- * checkNotificationSupport
- * Only native app supports notifications - web is simplified view only
- */
-function checkNotificationSupport(): { supported: boolean; perm: NotificationPermission | 'unsupported' } {
-    if (isNativeApp()) {
-        return { supported: true, perm: 'default' }; // Native always supported, perm checked later
-    }
-    // Web version does NOT support notifications - simplified view only
-    return { supported: false, perm: 'unsupported' };
-}
-
-/**
  * useNotifications Hook
  */
 export function useNotifications(): UseNotificationsReturn {
-    const [isSupported] = useState(() => checkNotificationSupport().supported);
-    const [permission, setPermission] = useState<NotificationPermission | 'unsupported' | 'granted' | 'denied'>(() => checkNotificationSupport().perm);
+    // Start with 'default' - will be updated in useEffect after mount
+    const [isSupported, setIsSupported] = useState(false);
+    const [permission, setPermission] = useState<NotificationPermission | 'unsupported' | 'granted' | 'denied'>('default');
     const scheduledRef = useRef<ScheduledNotification[]>([]); // For Web timeouts
+
 
     /**
      * Create Notification Channels (Native only)
@@ -124,10 +129,70 @@ export function useNotifications(): UseNotificationsReturn {
         }
     }, []);
 
-    // Initialize channels on load
-    useState(() => {
-        createChannels();
-    });
+    /**
+     * AUTO-REQUEST PERMISSION ON MOUNT
+     * This is the critical fix: request permission automatically when app loads
+     */
+    useEffect(() => {
+        const initializePermissions = async () => {
+            // Check if running in native app
+            const native = isNativeApp();
+            console.log('[Notifications] Initializing. isNative:', native);
+
+            if (!native) {
+                console.log('[Notifications] Not native app - notifications disabled');
+                setPermission('unsupported');
+                return;
+            }
+
+            // We're in native app - enable support
+            setIsSupported(true);
+
+            try {
+                console.log('[Notifications] Checking permissions on mount...');
+
+                // Step 1: Check current permission status
+                const status = await LocalNotifications.checkPermissions();
+                console.log('[Notifications] Current status:', status.display);
+
+                if (status.display === 'granted') {
+                    setPermission('granted');
+                    console.log('[Notifications] ✅ Permission already granted!');
+                    // Create channels if permission already granted
+                    await createChannels();
+                } else if (status.display === 'prompt') {
+                    // Permission not yet requested - request it now
+                    console.log('[Notifications] Requesting permissions...');
+                    const result = await LocalNotifications.requestPermissions();
+                    console.log('[Notifications] Request result:', result.display);
+
+                    if (result.display === 'granted') {
+                        setPermission('granted');
+                        await createChannels();
+
+                        // Also check exact alarm permission (Android 12+)
+                        try {
+                            const exactStatus = await LocalNotifications.checkExactNotificationSetting();
+                            if (exactStatus.exact_alarm !== 'granted') {
+                                await LocalNotifications.changeExactNotificationSetting();
+                            }
+                        } catch {
+                            // Expected on Android < 12
+                        }
+                    } else {
+                        setPermission('denied');
+                    }
+                } else {
+                    // Permission denied
+                    setPermission('denied');
+                }
+            } catch (e) {
+                console.error('[Notifications] Permission init failed:', e);
+            }
+        };
+
+        initializePermissions();
+    }, [createChannels]);
 
     /**
      * Request notification permission
@@ -198,6 +263,8 @@ export function useNotifications(): UseNotificationsReturn {
                 const channelId = 'prayer_alert_v2';
 
                 // For native, we just schedule it 1s in future as "immediate"
+                // For immediate alerts (not prayer alarms), we still use LocalNotifications
+                // OR we can use AlarmScheduler if it's critical
                 await LocalNotifications.schedule({
                     notifications: [{
                         title,
@@ -239,7 +306,13 @@ export function useNotifications(): UseNotificationsReturn {
         async (prayerId: string, type: 'atTime' | 'beforeEnd' = 'atTime') => {
             if (isNativeApp()) {
                 const id = generateNotificationId(prayerId, type);
+                // Cancel from both systems to be safe
                 await LocalNotifications.cancel({ notifications: [{ id }] });
+                try {
+                    await AlarmScheduler.cancelAlarm({ id });
+                } catch (e) {
+                    console.warn('Failed to cancel native alarm', e);
+                }
             } else {
                 const index = scheduledRef.current.findIndex(
                     (n) => n.prayerId === prayerId && n.type === type
@@ -277,31 +350,36 @@ export function useNotifications(): UseNotificationsReturn {
             if (isNativeApp()) {
                 const id = generateNotificationId(prayerId, type);
 
-                // Determine Channel ID based on sound file (v2 channels)
-                let channelId = 'prayer_alert_v2';
-                let soundName = 'alert'; // Default sound without extension
-                if (sound?.includes('adhan')) {
-                    channelId = 'prayer_adhan_v2';
-                    soundName = 'adhan';
-                } else if (sound?.includes('gentle')) {
-                    channelId = 'prayer_gentle_v2';
+                // Determine Sound Name for Native Plugin
+                // Receives 'default' (adhan), 'gentle', 'system', 'custom' (alert), or 'alert' (for reminders)
+                let soundName = 'adhan'; // Fallback / Default
+
+                if (sound === 'system') {
+                    soundName = 'system';
+                } else if (sound === 'gentle' || sound?.includes('gentle')) {
                     soundName = 'gentle';
+                } else if (sound === 'alert' || sound?.includes('alert')) {
+                    soundName = 'alert';
+                } else if (sound === 'adhan' || sound?.includes('adhan') || sound === 'default') {
+                    soundName = 'adhan';
                 }
 
                 try {
-                    await LocalNotifications.schedule({
-                        notifications: [{
-                            title,
-                            body: options.body || '',
-                            id,
-                            schedule: { at: time, allowWhileIdle: true },
-                            sound: soundName, // Without extension for Android
-                            smallIcon: 'ic_stat_prayer', // Custom notification icon
-                            channelId,
-                        }]
+                    // Use Native AlarmScheduler for Full Screen Experience
+                    console.log(`[Alarm] Scheduling native alarm: ${prayerId} at ${time.toLocaleTimeString()}`);
+
+                    await AlarmScheduler.scheduleAlarm({
+                        id,
+                        triggerTime: time.getTime(),
+                        prayerId,
+                        prayerName: title, // Use title as prayer name (e.g. "صلاة الفجر")
+                        sound: soundName
                     });
+
                 } catch (e) {
-                    console.error('Failed to schedule native notification', e);
+                    console.error('Failed to schedule native alarm', e);
+                    // Fallback to LocalNotifications if alarm fails?
+                    // For now, just log error.
                 }
             } else {
                 if (permission !== 'granted') return;

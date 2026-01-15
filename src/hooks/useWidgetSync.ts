@@ -4,6 +4,13 @@ import { useEffect } from 'react';
 import { Preferences } from '@capacitor/preferences';
 import { isNativeApp } from '@/lib/platform';
 import { getHijriDateString } from '@/lib/hijri';
+import { registerPlugin } from '@capacitor/core';
+
+// Helper interface for our plugin
+interface AlarmSchedulerPlugin {
+    updateWidgets(): Promise<void>;
+}
+const AlarmScheduler = registerPlugin<AlarmSchedulerPlugin>('AlarmScheduler');
 
 interface Prayer {
     id: string;
@@ -70,6 +77,14 @@ export function useWidgetSync(
                 });
 
                 console.log('[WidgetSync] Data saved successfully!');
+
+                // Force widget update immediately
+                try {
+                    await AlarmScheduler.updateWidgets();
+                    console.log('[WidgetSync] Widget refresh requested');
+                } catch (e) {
+                    console.warn('[WidgetSync] Failed to refresh widget:', e);
+                }
 
             } catch (e) {
                 console.error('[WidgetSync] Failed to sync:', e);

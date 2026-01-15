@@ -1,11 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Kufi_Arabic } from "next/font/google";
 import "./globals.css";
+import { BackButtonProvider } from "@/components/BackButtonProvider";
+import { AlarmListener } from "@/components/AlarmListener";
+import { StatusBarConfig } from "@/components/StatusBarConfig";
 
 const notoKufiArabic = Noto_Kufi_Arabic({
   subsets: ["arabic"],
-  weight: ["400", "500", "700"],
-  variable: "--font-arabic",
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-noto-kufi-arabic",
 });
 
 export const metadata: Metadata = {
@@ -30,6 +33,9 @@ export const viewport: Viewport = {
   themeColor: "#020617",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -40,7 +46,11 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className={notoKufiArabic.variable}>
-        {children}
+        <BackButtonProvider>
+          <StatusBarConfig />
+          <AlarmListener />
+          {children}
+        </BackButtonProvider>
       </body>
     </html>
   );
