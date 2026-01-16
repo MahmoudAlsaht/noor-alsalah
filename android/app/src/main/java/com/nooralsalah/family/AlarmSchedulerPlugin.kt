@@ -6,10 +6,14 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import android.media.RingtoneManager
+import android.net.Uri
+import androidx.activity.result.ActivityResult
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
+import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
 
 /**
@@ -222,6 +226,19 @@ class AlarmSchedulerPlugin : Plugin() {
     }
 
     /**
+     * Play a sound for preview/test
+     */
+    @PluginMethod
+    fun playAlarmSound(call: PluginCall) {
+        val sound = call.getString("sound") ?: ""
+        val isPreview = call.getBoolean("isPreview") ?: true
+        
+        Log.d(TAG, "Playing sound preview: $sound")
+        AlarmReceiver.playAlarmSound(context, sound, isPreview)
+        call.resolve()
+    }
+
+    /**
      * Create an intent for the alarm
      */
     private fun createAlarmIntent(id: Int, prayerId: String, prayerName: String, sound: String): Intent {
@@ -232,5 +249,47 @@ class AlarmSchedulerPlugin : Plugin() {
             putExtra(AlarmReceiver.EXTRA_SOUND, sound)
             putExtra(AlarmReceiver.EXTRA_IS_ALARM, true)
         }
+    }
+
+    /**
+     * Launch system ringtone picker
+     */
+    @PluginMethod
+    fun pickRingtone(call: PluginCall) {
+        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "اختر نغمة المنبه")
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
+            
+            // Try to set existing URI if provided
+            val existingUri = call.getString("currentUri")
+            if (existingUri != null) {
+                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(existingUri))
+            }
+        }
+        startActivityForResult(call, intent, "ringtoneResult")
+    }
+
+    @ActivityCallback
+    private fun ringtoneResult(call: PluginCall, result: ActivityResult) {
+        val intent = result.data
+        val uri = intent?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        
+        val ret = JSObject()
+        if (uri != null) {
+            ret.put("uri", uri.toString())
+            try {
+                val ringtone = RingtoneManager.getRingtone(context, uri)
+                val title = ringtone.getTitle(context)
+                ret.put("name", title)
+            } catch (e: Exception) {
+                ret.put("name", "نغمة مخصصة")
+            }
+        } else {
+            ret.put("uri", null)
+            ret.put("name", "صامت")
+        }
+        call.resolve(ret)
     }
 }

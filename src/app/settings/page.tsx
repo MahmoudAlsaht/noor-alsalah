@@ -1,349 +1,245 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ArrowRight, Bell, Clock, Volume2, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import {
+    ChevronDown,
+    ChevronUp,
+    Bell,
+    Clock,
+    Sliders,
+    Volume2,
+    RefreshCw,
+    ArrowLeft,
+    Info,
+    Settings as SettingsIcon,
+    Save
+} from 'lucide-react';
 import Link from 'next/link';
 import { useAlarmSettings } from '@/hooks/useAlarmSettings';
-import { useAlarmSound, ALARM_SOUNDS } from '@/hooks/useAlarmSound';
+import { useAlarmSound } from '@/hooks/useAlarmSound';
 import { useAppUpdater } from '@/hooks/useAppUpdater';
-import { isNativeApp } from '@/lib/platform';
-import { hapticFeedback } from '@/lib/haptics';
 import { usePrayerAdjustments, PrayerAdjustments } from '@/hooks/usePrayerAdjustments';
-import { Sliders, RefreshCw, Save } from 'lucide-react';
-// DownloadAppSection removed - not needed in native app settings
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import styles from './settings.module.css';
 
 const PRAYER_LABELS: Record<string, string> = {
     fajr: 'الفجر',
-    fajrFirst: 'أذان الفجر الأول',
     dhuhr: 'الظهر',
     asr: 'العصر',
     maghrib: 'المغرب',
     isha: 'العشاء',
 };
 
-
-function PrayerAdjustmentSection() {
-    const { adjustments, saveAdjustments, resetDefaults, isLoaded } = usePrayerAdjustments();
-    const [localAdjustments, setLocalAdjustments] = useState<PrayerAdjustments | null>(null);
-    const [isDirty, setIsDirty] = useState(false);
-
-    useEffect(() => {
-        if (isLoaded && !localAdjustments) {
-            setLocalAdjustments(adjustments);
-        }
-    }, [isLoaded, adjustments]);
-
-    if (!localAdjustments) return <div className="card loading">جاري التحميل...</div>;
-
-    const handleChange = (prayer: keyof PrayerAdjustments, change: number) => {
-        setLocalAdjustments(prev => {
-            if (!prev) return null;
-            return { ...prev, [prayer]: prev[prayer] + change };
-        });
-        setIsDirty(true);
-        hapticFeedback('light');
-    };
-
-    const handleSave = () => {
-        if (localAdjustments) {
-            hapticFeedback('medium');
-            saveAdjustments(localAdjustments);
-            window.location.reload();
-        }
-    };
-
-    const prayersList = [
-        { key: 'fajr', label: 'الفجر' },
-        { key: 'sunrise', label: 'الشروق' },
-        { key: 'dhuhr', label: 'الظهر' },
-        { key: 'asr', label: 'العصر' },
-        { key: 'maghrib', label: 'المغرب' },
-        { key: 'isha', label: 'العشاء' },
-    ] as const;
-
-    return (
-        <section className={`card ${styles.section}`}>
-            <div className={styles.sectionHeader}>
-                <Sliders size={20} />
-                <h2>تصحيح المواقيت (دقائق)</h2>
-            </div>
-            <p className={styles.note} style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
-                قم بزيادة أو إنقاص الدقائق لمطابقة الأذان في منطقتك.
-                <br />
-                <strong>ملاحظة:</strong> يتم إضافة 4 دقائق تلقائياً للمغرب لتوافق تقويم <strong>وزارة الأوقاف الأردنية</strong> (احتياطاً بعد الغروب الفلكي).
-                <br />
-                جميع المواقيت مضبوطة حسب التوقيت المحلي للأردن (GMT+3).
-            </p>
-
-            {prayersList.map(({ key, label }) => (
-                <div key={key} className={styles.prayerRow} style={{ padding: '0.8rem 0' }}>
-                    <div className={styles.prayerInfo}>
-                        <span className={styles.prayerName}>{label}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <button
-                            className="btn-icon"
-                            style={{ background: '#334155', width: '30px', height: '30px', borderRadius: '50%' }}
-                            onClick={() => handleChange(key, -1)}
-                        >-</button>
-
-                        <span style={{ minWidth: '30px', textAlign: 'center', fontWeight: 'bold', direction: 'ltr' }}>
-                            {localAdjustments[key] > 0 ? `+${localAdjustments[key]}` : localAdjustments[key]}
-                        </span>
-
-                        <button
-                            className="btn-icon"
-                            style={{ background: '#334155', width: '30px', height: '30px', borderRadius: '50%' }}
-                            onClick={() => handleChange(key, 1)}
-                        >+</button>
-                    </div>
-                </div>
-            ))}
-
-            {isDirty && (
-                <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-                    <button
-                        className="btn btn-primary"
-                        style={{ flex: 1, justifyContent: 'center' }}
-                        onClick={handleSave}
-                    >
-                        <Save size={18} style={{ marginLeft: '0.5rem' }} />
-                        حفظ وإعادة التشغيل
-                    </button>
-
-                    <button
-                        className="btn"
-                        style={{ background: '#475569' }}
-                        onClick={() => {
-                            if (confirm('هل تريد استعادة القيم الافتراضية؟')) {
-                                resetDefaults();
-                                window.location.reload();
-                            }
-                        }}
-                    >
-                        <RefreshCw size={18} />
-                    </button>
-                </div>
-            )}
-        </section>
-    );
-}
-
 export default function SettingsPage() {
     const { settings, updatePrayerSetting, setTimeFormat } = useAlarmSettings();
-    const { selectedSound, setSelectedSound, playAlarm, stopAlarm, isPlaying, hasCustomSound } = useAlarmSound();
+    const { adjustments, saveAdjustments } = usePrayerAdjustments();
+    const { soundName, pickSystemRingtone, playAlarm, stopAlarm, isPlaying } = useAlarmSound();
     const { isChecking, checkForUpdate, currentVersion } = useAppUpdater();
+    const [expandedPrayer, setExpandedPrayer] = useState<string | null>(null);
+    const [isDirty, setIsDirty] = useState(false);
 
     const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
 
-    // Secure: Prevent Web Access
-    useEffect(() => {
-        if (!isNativeApp()) {
-            window.location.href = '/'; // Direct redirect (no Router to avoid hydration lag)
+    const toggleHaptics = async (style: ImpactStyle = ImpactStyle.Light) => {
+        try {
+            await Haptics.impact({ style });
+        } catch {
+            // Haptics not supported
         }
-    }, []);
+    };
 
-    // Also hide content immediately while redirecting
-    if (!isNativeApp()) return null;
+    const handleSettingChange = (prayer: string, key: string, value: string | boolean) => {
+        toggleHaptics();
+        updatePrayerSetting(prayer as 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha', { [key]: value });
+    };
+
+    const handleOffsetChange = (prayer: keyof PrayerAdjustments, value: number) => {
+        toggleHaptics();
+        const newAdjustments = { ...adjustments, [prayer]: value };
+        saveAdjustments(newAdjustments);
+        setIsDirty(true);
+    };
 
     return (
         <div className={styles.container}>
             {/* Header */}
             <header className={styles.header}>
-                <Link href="/" className={styles.backBtn}>
-                    <ArrowRight size={24} />
+                <Link href="/" className={styles.backBtn} onClick={() => toggleHaptics(ImpactStyle.Medium)}>
+                    <ArrowLeft size={24} style={{ transform: 'rotate(180deg)' }} />
                 </Link>
-                <h1>الإعدادات</h1>
+                <h1 className="text-gradient">الإعدادات</h1>
             </header>
 
-            {/* Notification Settings */}
-            <section className={`card ${styles.section}`}>
+            {/* 1. Prayer Management (Accordion) */}
+            <section className={`${styles.section} card`}>
                 <div className={styles.sectionHeader}>
-                    <Bell size={20} />
-                    <h2>إعدادات التنبيهات</h2>
+                    <Bell size={20} className="text-accent" />
+                    <h2 className="text-gradient">تنبيهات الصلوات</h2>
                 </div>
+                <p className={styles.note}>تحكم في تنبيهات كل صلاة وتوقيتها وتصحيحها.</p>
 
-                {prayers.map((prayer) => (
-                    <div key={prayer} className={styles.prayerRow}>
-                        <div className={styles.prayerInfo}>
-                            <span className={styles.prayerName}>{PRAYER_LABELS[prayer]}</span>
-                        </div>
+                <div className={styles.prayerList}>
+                    {prayers.map((id) => (
+                        <div key={id} className={`${styles.prayerItem} ${expandedPrayer === id ? styles.prayerItemExpanded : ''}`}>
+                            <div className={styles.prayerHeader} onClick={() => {
+                                setExpandedPrayer(expandedPrayer === id ? null : id);
+                                toggleHaptics();
+                            }}>
+                                <span className={styles.prayerName}>{PRAYER_LABELS[id]}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <span className={styles.prayerNote}>
+                                        {settings[id].enabled ? 'مفعل' : 'معطل'}
+                                    </span>
+                                    {expandedPrayer === id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                </div>
+                            </div>
 
-                        <div className={styles.prayerControls}>
-                            {/* Enable/Disable Toggle */}
-                            <label className={styles.toggle}>
-                                <input
-                                    type="checkbox"
-                                    checked={settings[prayer].enabled}
-                                    onChange={(e) => {
-                                        hapticFeedback('light');
-                                        updatePrayerSetting(prayer, { enabled: e.target.checked });
-                                    }}
-                                />
-                                <span className={styles.toggleSlider}></span>
-                            </label>
-                        </div>
-                    </div>
-                ))}
-            </section>
+                            {expandedPrayer === id && (
+                                <div className={styles.prayerContent}>
+                                    <div className={styles.flexBetween} style={{ marginBottom: '1.25rem' }}>
+                                        <label style={{ fontWeight: 700 }}>تفعيل التنبيه</label>
+                                        <input
+                                            type="checkbox"
+                                            className="premium-checkbox"
+                                            checked={settings[id].enabled}
+                                            onChange={(e) => handleSettingChange(id, 'enabled', e.target.checked)}
+                                        />
+                                    </div>
 
-            {/* Timing Options */}
-            <section className={`card ${styles.section}`}>
-                <div className={styles.sectionHeader}>
-                    <Clock size={20} />
-                    <h2>توقيت التنبيه</h2>
-                </div>
-                <p className={styles.note}>
-                    اختر متى تريد التنبيه لكل صلاة: وقت الدخول، قبل الخروج، أو كلاهما.
-                </p>
+                                    <div className={styles.flexBetween} style={{ marginBottom: '1.25rem' }}>
+                                        <label style={{ fontWeight: 700 }}>توقيت التنبيه</label>
+                                        <select
+                                            className="premium-select"
+                                            value={settings[id].timing || 'atTime'}
+                                            disabled={!settings[id].enabled}
+                                            onChange={(e) => handleSettingChange(id, 'timing', e.target.value)}
+                                        >
+                                            <option value="atTime">عند دخول الوقت</option>
+                                            <option value="beforeEnd">قبل انتهاء الوقت</option>
+                                            <option value="both">كلاهما</option>
+                                        </select>
+                                    </div>
 
-                {prayers.map((prayer) => (
-                    <div key={prayer} className={styles.timingRow}>
-                        <span>{PRAYER_LABELS[prayer]}</span>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                            <select
-                                value={settings[prayer].timing}
-                                onChange={(e) =>
-                                    updatePrayerSetting(prayer, { timing: e.target.value as 'atTime' | 'beforeEnd' | 'both' | 'none' })
-                                }
-                                className={styles.select}
-                                disabled={!settings[prayer].enabled}
-                            >
-                                <option value="atTime">وقت الصلاة</option>
-                                <option value="beforeEnd">قبل خروج الوقت</option>
-                                <option value="both">كلاهما</option>
-                                <option value="none">بدون</option>
-                            </select>
-
-                            {/* Minutes selector for beforeEnd */}
-                            {(settings[prayer].timing === 'beforeEnd' || settings[prayer].timing === 'both') && settings[prayer].enabled && (
-                                <select
-                                    value={settings[prayer].beforeEndMinutes}
-                                    onChange={(e) =>
-                                        updatePrayerSetting(prayer, { beforeEndMinutes: parseInt(e.target.value) })
-                                    }
-                                    className={styles.select}
-                                    style={{ width: 'auto', minWidth: '70px' }}
-                                >
-                                    <option value="5">5 د</option>
-                                    <option value="10">10 د</option>
-                                    <option value="15">15 د</option>
-                                    <option value="20">20 د</option>
-                                    <option value="30">30 د</option>
-                                </select>
+                                    <div className={styles.flexBetween}>
+                                        <label style={{ fontWeight: 700 }}>تصحيح الوقت (دقائق)</label>
+                                        <select
+                                            className="premium-select"
+                                            value={adjustments[id]}
+                                            onChange={(e) => handleOffsetChange(id as keyof PrayerAdjustments, parseInt(e.target.value))}
+                                        >
+                                            {Array.from({ length: 41 }, (_, i) => i - 20).map(v => (
+                                                <option key={v} value={v}>{v > 0 ? `+${v}` : v}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                             )}
                         </div>
+                    ))}
+                </div>
+
+                {isDirty && (
+                    <div style={{ padding: '0 1rem 1rem' }}>
+                        <button
+                            className="btn btn-primary w-full"
+                            style={{ background: 'var(--color-gold)', color: '#000', width: '100%', justifyContent: 'center' }}
+                            onClick={() => { window.location.reload(); }}
+                        >
+                            <Save size={18} style={{ marginLeft: '0.5rem' }} />
+                            يجب إعادة تشغيل التطبيق لتطبيق التعديلات
+                        </button>
                     </div>
-                ))}
+                )}
             </section>
 
-            {/* Sound Settings */}
-            <section className={`card ${styles.section}`}>
+            {/* 2. Sound & Feedback */}
+            <section className={`${styles.section} card`}>
                 <div className={styles.sectionHeader}>
-                    <Volume2 size={20} />
-                    <h2>صوت التنبيه</h2>
+                    <Volume2 size={20} className="text-accent" />
+                    <h2 className="text-gradient">الصوت والتفاعل</h2>
                 </div>
 
-                <div className={styles.soundRow}>
-                    <label>اختر الرنة:</label>
-                    <select
-                        value={selectedSound}
-                        onChange={(e) => setSelectedSound(e.target.value as typeof selectedSound)}
-                        className={styles.select}
-                    >
-                        {ALARM_SOUNDS
-                            .filter((sound) => sound.id !== 'custom' || hasCustomSound)
-                            .map((sound) => (
-                                <option key={sound.id} value={sound.id}>
-                                    {sound.name}
-                                </option>
-                            ))}
-                    </select>
-                </div>
+                <div className={styles.soundPickerContainer} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div className={styles.flexBetween} style={{ padding: '0.5rem 0' }}>
+                        <div>
+                            <p style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>نغمة التنبيه</p>
+                            <p className={styles.note}>{soundName || 'نغمة النظام'}</p>
+                        </div>
+                    </div>
 
-                {/* Custom Sound Upload - Feature postponed */}
-
-                <button
-                    className="btn btn-secondary"
-                    onClick={isPlaying ? stopAlarm : () => playAlarm(false)}
-                    style={{ marginTop: '0.5rem' }}
-                >
-                    {isPlaying ? 'إيقاف' : 'تجربة الصوت'}
-                </button>
-            </section>
-
-            {/* Time Format Settings */}
-            <section className={`card ${styles.section}`}>
-                <div className={styles.sectionHeader}>
-                    <Clock size={20} />
-                    <h2>تنسيق الوقت</h2>
-                </div>
-
-                <div className={styles.soundRow}>
-                    <label>نظام العرض:</label>
-                    <select
-                        value={settings.timeFormat}
-                        onChange={(e) => setTimeFormat(e.target.value as '12h' | '24h')}
-                        className={styles.select}
-                    >
-                        <option value="12h">12 ساعة (مسائي/صباحي)</option>
-                        <option value="24h">24 ساعة (13:00)</option>
-                    </select>
-                </div>
-            </section>
-
-            {/* Update Check */}
-            <section className={`card ${styles.section}`}>
-                <div className={styles.sectionHeader}>
-                    <ExternalLink size={20} />
-                    <h2>التحديثات</h2>
-                </div>
-                <div style={{ marginTop: '0.5rem' }}>
                     <button
-                        className="btn btn-primary"
-                        style={{ width: '100%', padding: '1rem', justifyContent: 'center', backgroundColor: '#059669' }}
-                        onClick={() => checkForUpdate(true)}
-                        disabled={isChecking}
+                        className="btn btn-secondary w-full"
+                        style={{ justifyContent: 'center' }}
+                        onClick={() => { pickSystemRingtone(); toggleHaptics(); }}
                     >
-                        {isChecking ? 'جاري البحث...' : 'ابحث عن نسخة جديدة من التطبيق'}
+                        <Sliders size={18} style={{ marginLeft: '0.5rem' }} />
+                        تغيير النغمة
+                    </button>
+
+                    <button
+                        className={`btn ${isPlaying ? 'btn-secondary' : 'btn-primary'} w-full`}
+                        style={{ justifyContent: 'center' }}
+                        onClick={() => {
+                            if (isPlaying) stopAlarm();
+                            else playAlarm(false);
+                            toggleHaptics(ImpactStyle.Medium);
+                        }}
+                    >
+                        {isPlaying ? 'إيقاف التجربة' : 'تجربة الصوت'}
                     </button>
                 </div>
             </section>
 
-            {/* Prayer Time Adjustments */}
-            <PrayerAdjustmentSection />
+            {/* 3. Global Display Settings */}
+            <section className={`${styles.section} card`}>
+                <div className={styles.sectionHeader}>
+                    <SettingsIcon size={20} className="text-accent" />
+                    <h2 className="text-gradient">تفضيلات العرض</h2>
+                </div>
 
-            {/* Dev Tools (Development Only - Hidden in Production) */}
-            {
-                process.env.NODE_ENV === 'development' && (
-                    <section className={`card ${styles.section}`} style={{ borderColor: '#f59e0b' }}>
-                        <div className={styles.sectionHeader}>
-                            <Bell size={20} />
-                            <h2>أدوات المطور</h2>
-                        </div>
-                        <Link
-                            href="/test-notifications"
-                            className="btn btn-primary"
-                            style={{
-                                width: '100%',
-                                padding: '1rem',
-                                justifyContent: 'center',
-                                backgroundColor: '#f59e0b',
-                                textDecoration: 'none',
-                                display: 'flex'
-                            }}
-                        >
-                            🔔 محاكاة التنبيهات (اختبار)
-                        </Link>
-                    </section>
-                )
-            }
+                <div className={styles.flexBetween}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <Clock size={18} className="text-secondary" />
+                        <span style={{ fontWeight: 700 }}>نظام الوقت (12/24)</span>
+                    </div>
+                    <input
+                        type="checkbox"
+                        className="premium-checkbox"
+                        checked={settings.timeFormat === '24h'}
+                        onChange={(e) => {
+                            setTimeFormat(e.target.checked ? '24h' : '12h');
+                            toggleHaptics();
+                        }}
+                    />
+                </div>
+            </section>
 
-            {/* App Version Info */}
-            <p className="text-secondary" style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem' }}>
-                إصدار التطبيق: {currentVersion || '...'}
-            </p>
-        </div >
+            {/* 4. About & System */}
+            <section className={`${styles.section} card`}>
+                <div className={styles.sectionHeader}>
+                    <Info size={20} className="text-accent" />
+                    <h2 className="text-gradient">عن التطبيق</h2>
+                </div>
+
+                <div className={styles.flexBetween} style={{ padding: '0.5rem 0' }}>
+                    <span className={styles.note} style={{ fontSize: '0.95rem' }}>إصدار التطبيق</span>
+                    <span style={{ fontWeight: 800, color: 'var(--accent)' }}>{currentVersion || '0.1.27'}</span>
+                </div>
+
+                <button
+                    className="btn btn-primary w-full"
+                    style={{ justifyContent: 'center', marginTop: '0.5rem' }}
+                    onClick={() => { checkForUpdate(); toggleHaptics(ImpactStyle.Medium); }}
+                    disabled={isChecking}
+                >
+                    <RefreshCw size={18} className={isChecking ? 'animate-spin' : ''} style={{ marginLeft: '0.5rem' }} />
+                    {isChecking ? 'جاري الفحص...' : 'البحث عن تحديثات'}
+                </button>
+            </section>
+
+            <footer style={{ textAlign: 'center', padding: '3rem 1rem', opacity: 0.4 }}>
+                <p className={styles.note}>نور الصلاة - تقبل الله طاعتكم</p>
+            </footer>
+        </div>
     );
 }

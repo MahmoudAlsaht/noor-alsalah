@@ -1,6 +1,6 @@
 {
-    "version": "0.1.27",
-    "buildDate": "2026-01-15",
+    "version": "1.0.0",
+    "buildDate": "2026-01-16",
     "downloadUrl": "https://github.com/MahmoudAlsaht/noor-alsalah/releases/latest/download/noor-alsalah.apk",
-    "notes": "إصلاح مشكلة عرض تفاصيل التحديث، وتحسين دقة حساب صلاة الفجر القادمة بعد منتصف الليل أو بعد العشاء."
+    "notes": "الإصدار الرسمي الأول (V1.0.0): تصميم عصري فاخر، دعم كامل للغة العربية (RTL)، تكامل مع نغمات النظام، وتحسينات شاملة للمنبه وتتبع الصلوات."
 }

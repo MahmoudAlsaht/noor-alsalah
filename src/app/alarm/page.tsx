@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback, useEffect, useState, Suspense } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { isNativeApp } from '@/lib/platform';
@@ -22,8 +22,7 @@ const PRAYER_NAMES: Record<string, string> = {
     isha: 'العشاء',
 };
 
-const STORAGE_KEY = 'selected-alarm-sound';
-const CUSTOM_SOUND_KEY = 'custom-alarm-sound-url';
+
 
 /**
  * Alarm Content Component
@@ -31,7 +30,7 @@ const CUSTOM_SOUND_KEY = 'custom-alarm-sound-url';
 function AlarmContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+
     const [isReady] = useState(true);
 
     // Secure: Prevent Web Access
@@ -46,26 +45,7 @@ function AlarmContent() {
 
     const [currentTime, setCurrentTime] = useState('');
 
-    // Get sound URL based on settings or query parameter
-    const getSoundUrl = () => {
-        // Check for sound in query params (for testing)
-        const soundParam = searchParams.get('sound');
-        if (soundParam) {
-            return `/sounds/${soundParam}.mp3`;
-        }
 
-        try {
-            const selectedSound = localStorage.getItem(STORAGE_KEY) || 'adhan';
-            if (selectedSound === 'gentle') {
-                return '/sounds/gentle.mp3';
-            } else if (selectedSound === 'alert') {
-                return '/sounds/alert.mp3';
-            }
-        } catch {
-            // Use default
-        }
-        return '/sounds/adhan.mp3';
-    };
 
     // Update time every second
     useEffect(() => {
@@ -100,13 +80,7 @@ function AlarmContent() {
         return () => clearTimeout(timer);
     }, [handleStop]);
 
-    // Handle audio with HTML audio element callback
-    const handleAudioRef = (audio: HTMLAudioElement | null) => {
-        if (audio && !audioRef.current) {
-            audioRef.current = audio;
-            audio.play().catch(console.error);
-        }
-    };
+
 
     if (!isNativeApp()) return null;
 

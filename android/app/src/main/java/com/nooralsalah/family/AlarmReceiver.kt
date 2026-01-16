@@ -32,7 +32,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
         // START PLAYING SOUND IMMEDIATELY (Native)
         // This ensures sound plays even if app UI takes time to load or screen is locked
-        playAlarmSound(context, sound)
+        playAlarmSound(context, sound, isPreview = false)
 
         // Launch MainActivity with alarm intent
         val launchIntent = Intent(context, MainActivity::class.java).apply {
@@ -49,39 +49,6 @@ class AlarmReceiver : BroadcastReceiver() {
         Log.d(TAG, "Launched MainActivity with alarm data")
     }
 
-    private fun playAlarmSound(context: Context, soundName: String) {
-        try {
-            // Stop any existing sound first
-            stopAlarmSound()
-
-            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            
-            // Request Max Volume for Alarm Stream
-            val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM)
-            audioManager.setStreamVolume(android.media.AudioManager.STREAM_ALARM, maxVolume, 0)
-
-            val uri = when (soundName) {
-                "adhan" -> android.net.Uri.parse("android.resource://${context.packageName}/raw/adhan")
-                "gentle" -> android.net.Uri.parse("android.resource://${context.packageName}/raw/gentle")
-                "alert" -> android.provider.Settings.System.DEFAULT_NOTIFICATION_URI // For reminders (short)
-                "system" -> android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI // For main alarm (looping)
-                else -> android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI // Fallback
-            }
-
-            mediaPlayer = android.media.MediaPlayer().apply {
-                setDataSource(context, uri)
-                setAudioStreamType(android.media.AudioManager.STREAM_ALARM) // Critical: Plays even in DND/Silent
-                isLooping = true // Loop until user stops it
-                prepare()
-                start()
-            }
-            
-            Log.d(TAG, "🎵 Started playing alarm sound: $soundName on STREAM_ALARM")
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to play alarm sound", e)
-        }
-    }
 
     companion object {
         private const val TAG = "AlarmReceiver"
@@ -92,6 +59,43 @@ class AlarmReceiver : BroadcastReceiver() {
         
         // Global MediaPlayer to control it from anywhere (e.g. stop it from UI)
         var mediaPlayer: android.media.MediaPlayer? = null
+
+        fun playAlarmSound(context: Context, soundName: String, isPreview: Boolean = false) {
+            try {
+                // Stop any existing sound first
+                stopAlarmSound()
+
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                
+                // For preview, we don't force max volume and use STREAM_MUSIC
+                val streamType = if (isPreview) android.media.AudioManager.STREAM_MUSIC else android.media.AudioManager.STREAM_ALARM
+                
+                if (!isPreview) {
+                    // Request Max Volume for Alarm Stream
+                    val maxVolume = audioManager.getStreamMaxVolume(streamType)
+                    audioManager.setStreamVolume(streamType, maxVolume, 0)
+                }
+
+                val uri = if (soundName.isNotEmpty() && (soundName.startsWith("content://") || soundName.startsWith("file://"))) {
+                    android.net.Uri.parse(soundName)
+                } else {
+                    android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI
+                }
+
+                mediaPlayer = android.media.MediaPlayer().apply {
+                    setDataSource(context, uri)
+                    setAudioStreamType(streamType)
+                    isLooping = !isPreview // Loop for real alarms, play once for preview
+                    prepare()
+                    start()
+                }
+                
+                Log.d(TAG, "🎵 Started playing sound: $soundName on stream $streamType (preview=$isPreview)")
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to play sound", e)
+            }
+        }
         
         fun stopAlarmSound() {
             try {

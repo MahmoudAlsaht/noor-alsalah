@@ -30,6 +30,7 @@ export interface PrayerTimeEntry {
     nameEn: string;
     time: Date;
     timeFormatted: string;
+    isTomorrow?: boolean;
 }
 
 /**
@@ -226,6 +227,7 @@ export function usePrayerTimes({ format = '12h' }: UsePrayerTimesOptions = {}): 
                 nameEn: 'Fajr',
                 time: tomorrowTimes.fajr,
                 timeFormatted: formatPrayers(tomorrowTimes, format).find(p => p.id === 'fajr')?.timeFormatted || '',
+                isTomorrow: true,
             };
         }
 
@@ -237,7 +239,7 @@ export function usePrayerTimes({ format = '12h' }: UsePrayerTimesOptions = {}): 
     const timeRemaining = useMemo(() => {
         if (!nextPrayer) return '00:00:00';
 
-        let diffSeconds = differenceInSeconds(nextPrayer.time, currentDate);
+        const diffSeconds = differenceInSeconds(nextPrayer.time, currentDate);
 
         // If negative (shouldn't happen if nextPrayer is correctly set to tomorrow, but for safety)
         if (diffSeconds < 0 && nextPrayer.id === 'fajr') {

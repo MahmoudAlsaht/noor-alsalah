@@ -93,7 +93,7 @@ export function useAppUpdater() {
     const downloadAndInstall = async (paramsUrl: string) => {
         try {
             const url = paramsUrl.startsWith('http') ? paramsUrl : `${UPDATE_HOST}${paramsUrl}`;
-            const path = 'noor-update.apk';
+
 
             // 1. Download file
             // Use time timestamp to avoid conflicts

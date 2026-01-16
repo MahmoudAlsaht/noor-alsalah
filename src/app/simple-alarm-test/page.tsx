@@ -37,18 +37,12 @@ const OverlayPermission = registerPlugin<OverlayPermissionPlugin>('OverlayPermis
  * - Show the /alarm page with sound
  */
 export default function SimpleAlarmTest() {
-    const { selectedSound, setSelectedSound } = useAlarmSound();
+    const { selectedSound, soundName, pickSystemRingtone } = useAlarmSound();
     const [seconds, setSeconds] = useState(30);
     const [status, setStatus] = useState('جاهز');
     const [isScheduled, setIsScheduled] = useState(false);
     const [scheduledTime, setScheduledTime] = useState<Date | null>(null);
     const [overlayGranted, setOverlayGranted] = useState(false);
-
-    // Check overlay permission on mount
-    useEffect(() => {
-        if (!isNativeApp()) return;
-        checkOverlayPermission();
-    }, []);
 
     const checkOverlayPermission = async () => {
         try {
@@ -58,6 +52,16 @@ export default function SimpleAlarmTest() {
             console.error('Overlay check failed:', e);
         }
     };
+
+    // Check overlay permission on mount
+    useEffect(() => {
+        if (!isNativeApp()) return;
+
+        const init = async () => {
+            await checkOverlayPermission();
+        };
+        init();
+    }, []);
 
     const requestOverlay = async () => {
         try {
@@ -92,12 +96,8 @@ export default function SimpleAlarmTest() {
             const fireTime = new Date(Date.now() + seconds * 1000);
             const triggerTimeMs = fireTime.getTime();
 
-            // Map selected sound ID to Native Receiver expected strings
-            let soundName = 'adhan';
-            if (selectedSound === 'gentle') soundName = 'gentle';
-            else if (selectedSound === 'system') soundName = 'system';
-            else if (selectedSound === 'custom') soundName = 'alert'; // Placeholder for custom
-            else if (selectedSound === 'default') soundName = 'adhan';
+            // Use selectedSound URI directly
+            const soundName = selectedSound;
 
             // Direct call to native plugin
             const result = await AlarmScheduler.scheduleAlarm({
@@ -114,9 +114,10 @@ export default function SimpleAlarmTest() {
             setScheduledTime(fireTime);
             setStatus(`✅ سيرن في ${fireTime.toLocaleTimeString()} (صوت: ${soundName})`);
 
-        } catch (e: any) {
-            console.error('Schedule failed:', e);
-            setStatus(`❌ فشل: ${e.message}`);
+        } catch (e: unknown) {
+            const error = e as Error;
+            console.error('Schedule failed:', error);
+            setStatus(`❌ فشل: ${error.message}`);
         }
     };
 
@@ -253,22 +254,32 @@ export default function SimpleAlarmTest() {
                     {/* Sound Selector */}
                     <div style={{ marginBottom: 20, textAlign: 'center' }}>
                         <p style={{ color: '#94a3b8', marginBottom: 5 }}>صوت التنبيه:</p>
-                        <select
-                            value={selectedSound}
-                            onChange={(e) => setSelectedSound(e.target.value as any)}
-                            style={{
-                                padding: 10,
-                                borderRadius: 8,
-                                backgroundColor: '#334155',
-                                color: 'white',
-                                border: '1px solid #475569',
-                                fontSize: 16
-                            }}
-                        >
-                            <option value="default">الافتراضية (أذان)</option>
-                            <option value="gentle">هادئة</option>
-                            <option value="system">نغمة النظام</option>
-                        </select>
+                        <div style={{
+                            padding: '10px 20px',
+                            borderRadius: 12,
+                            backgroundColor: '#334155',
+                            color: 'white',
+                            border: '1px solid #475569',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 15
+                        }}>
+                            <span style={{ fontWeight: 'bold' }}>{soundName || 'نغمة النظام'}</span>
+                            <button
+                                onClick={pickSystemRingtone}
+                                style={{
+                                    padding: '5px 12px',
+                                    borderRadius: 8,
+                                    backgroundColor: '#6366f1',
+                                    color: 'white',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: 14
+                                }}
+                            >
+                                تغيير
+                            </button>
+                        </div>
                     </div>
 
                     {/* Seconds Input */}

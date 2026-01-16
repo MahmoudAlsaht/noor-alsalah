@@ -80,36 +80,23 @@ export function useNotifications(): UseNotificationsReturn {
         if (!isNativeApp()) return;
 
         try {
-            // Channel for Default Adhan (v2 - new channel to override old settings)
+            // Channel for Alarms (v2)
             await LocalNotifications.createChannel({
-                id: 'prayer_adhan_v2',
-                name: 'تنبيهات الصلاة (أذان)',
-                description: 'تنبيهات أوقات الصلاة مع صوت الأذان',
+                id: 'prayer_alarm_v2',
+                name: 'منبهات الصلاة',
+                description: 'تنبيهات أوقات الصلاة الرئيسية',
                 importance: 5, // HIGH
                 visibility: 1, // PUBLIC
-                sound: 'adhan', // Without extension for Android
                 vibration: true,
             });
 
-            // Channel for Gentle Sound (v2)
+            // Channel for Reminders (v2)
             await LocalNotifications.createChannel({
-                id: 'prayer_gentle_v2',
-                name: 'تنبيهات الصلاة (هادئ)',
-                description: 'تنبيهات أوقات الصلاة مع صوت هادئ',
-                importance: 5, // HIGH
-                visibility: 1, // PUBLIC
-                sound: 'gentle', // Without extension for Android
-                vibration: true,
-            });
-
-            // Channel for Default/Other (v2)
-            await LocalNotifications.createChannel({
-                id: 'prayer_alert_v2',
-                name: 'تنبيهات الصلاة (تذكير)',
+                id: 'prayer_reminder_v2',
+                name: 'تذكيرات الصلاة',
                 description: 'تنبيهات التذكير قبل خروج الوقت',
                 importance: 4, // DEFAULT
                 visibility: 1,
-                sound: 'alert', // Without extension for Android
                 vibration: true,
             });
 
@@ -259,23 +246,14 @@ export function useNotifications(): UseNotificationsReturn {
             if (!isSupported) return;
 
             if (isNativeApp()) {
-                // Determine channel based on simplistic logic or default
-                const channelId = 'prayer_alert_v2';
-
-                // For native, we just schedule it 1s in future as "immediate"
-                // For immediate alerts (not prayer alarms), we still use LocalNotifications
-                // OR we can use AlarmScheduler if it's critical
                 await LocalNotifications.schedule({
                     notifications: [{
                         title,
                         body: options?.body || '',
-                        id: Math.floor(Date.now() / 1000), // Random ID for immediate
+                        id: Math.floor(Date.now() / 1000),
                         schedule: { at: new Date(Date.now() + 100) },
-                        sound: 'alert', // Without extension
-                        smallIcon: 'ic_stat_prayer', // Custom notification icon
-                        channelId,
-                        actionTypeId: '',
-                        extra: null
+                        smallIcon: 'ic_stat_prayer',
+                        channelId: 'prayer_reminder_v2',
                     }]
                 });
             } else {
@@ -349,31 +327,16 @@ export function useNotifications(): UseNotificationsReturn {
 
             if (isNativeApp()) {
                 const id = generateNotificationId(prayerId, type);
-
-                // Determine Sound Name for Native Plugin
-                // Receives 'default' (adhan), 'gentle', 'system', 'custom' (alert), or 'alert' (for reminders)
-                let soundName = 'adhan'; // Fallback / Default
-
-                if (sound === 'system') {
-                    soundName = 'system';
-                } else if (sound === 'gentle' || sound?.includes('gentle')) {
-                    soundName = 'gentle';
-                } else if (sound === 'alert' || sound?.includes('alert')) {
-                    soundName = 'alert';
-                } else if (sound === 'adhan' || sound?.includes('adhan') || sound === 'default') {
-                    soundName = 'adhan';
-                }
-
                 try {
                     // Use Native AlarmScheduler for Full Screen Experience
-                    console.log(`[Alarm] Scheduling native alarm: ${prayerId} at ${time.toLocaleTimeString()}`);
+                    console.log(`[Alarm] Scheduling native alarm: ${prayerId} at ${time.toLocaleTimeString()} with sound URI: ${sound}`);
 
                     await AlarmScheduler.scheduleAlarm({
                         id,
                         triggerTime: time.getTime(),
                         prayerId,
-                        prayerName: title, // Use title as prayer name (e.g. "صلاة الفجر")
-                        sound: soundName
+                        prayerName: title,
+                        sound: sound || '' // Pass the URI directly
                     });
 
                 } catch (e) {
@@ -386,20 +349,10 @@ export function useNotifications(): UseNotificationsReturn {
                 const timeoutId = setTimeout(() => {
                     sendNotification(title, options);
 
-                    // Manually play sound for Web
-                    if (sound) {
-                        // Our files are in public/sounds/ 
-                        // Our files are in public/sounds/ or just root?
-                        // Native raw files are: adhan.mp3, alert.mp3, gentle.mp3
-                        // We need these in public/ folder for web to play them.
-                        // Assuming they are mapped.
-                        let webSoundUrl = '/sounds/alarm-default.mp3';
-                        if (sound.includes('adhan')) webSoundUrl = '/sounds/adhan.mp3'; // Need to ensure file exists
-                        else if (sound.includes('gentle')) webSoundUrl = '/sounds/gentle.mp3';
-                        else if (sound.includes('alert')) webSoundUrl = '/sounds/alert.mp3';
-
-                        const audio = new Audio(webSoundUrl);
-                        audio.play().catch(e => console.warn('Expected web audio play error (interaction disallowed):', e));
+                    // Manual play sound for Web - Optional: Skip since files are removed
+                    if (sound && !sound.startsWith('content://')) {
+                        const audio = new Audio(sound);
+                        audio.play().catch(() => { });
                     }
 
                     if (onFire) onFire();

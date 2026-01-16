@@ -29,7 +29,7 @@ export function AlarmListener() {
                     // alert(`🚀 انطلق المنبه!\nالصلاة: ${data.prayerName || data.prayerId}`); // Debugging
 
                     // Redirect to alarm page immediately
-                    router.replace(`/alarm?prayer=${data.prayerId}&sound=${data.sound || 'adhan'}`);
+                    router.replace(`/alarm?prayer=${data.prayerId}&sound=${encodeURIComponent(data.sound || '')}`);
                     checkedRef.current = true;
                 }
             } catch (e) {

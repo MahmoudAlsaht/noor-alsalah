@@ -1,0 +1,47 @@
+
+> noor-alsalah@0.1.27 lint
+> eslint
+
+
+/home/mahmoudkde/projects/noor-alsalah/src/app/alarm/page.tsx
+  25:7   warning  'STORAGE_KEY' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  33:11  warning  'audioRef' is assigned a value but never used     @typescript-eslint/no-unused-vars
+
+/home/mahmoudkde/projects/noor-alsalah/src/app/settings/page.tsx
+  33:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/mahmoudkde/projects/noor-alsalah/src/app/settings/page.tsx:33:13
+  31 |     useEffect(() => {
+  32 |         if (isLoaded && !localAdjustments) {
+> 33 |             setLocalAdjustments(adjustments);
+     |             ^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  34 |         }
+  35 |     }, [isLoaded, adjustments, localAdjustments]);
+  36 |  react-hooks/set-state-in-effect
+
+/home/mahmoudkde/projects/noor-alsalah/src/app/simple-alarm-test/page.tsx
+  59:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/mahmoudkde/projects/noor-alsalah/src/app/simple-alarm-test/page.tsx:59:9
+  57 |     useEffect(() => {
+  58 |         if (!isNativeApp()) return;
+> 59 |         checkOverlayPermission();
+     |         ^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  60 |     }, []);
+  61 |
+  62 |     const requestOverlay = async () => {  react-hooks/set-state-in-effect
+
+✖ 4 problems (2 errors, 2 warnings)
+

@@ -41,7 +41,7 @@ class MainActivity : BridgeActivity() {
         if (!isAlarm) return
         
         val prayerId = intent.getStringExtra(AlarmReceiver.EXTRA_PRAYER_ID) ?: "fajr"
-        val sound = intent.getStringExtra(AlarmReceiver.EXTRA_SOUND) ?: "adhan"
+        val sound = intent.getStringExtra(AlarmReceiver.EXTRA_SOUND) ?: ""
         
         Log.d(TAG, "Alarm intent received! Prayer: $prayerId, Sound: $sound")
         

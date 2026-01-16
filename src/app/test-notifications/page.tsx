@@ -59,6 +59,9 @@ export default function TestNotifications() {
     const simulateSingleNotification = async (type: 'adhan' | 'gentle' | 'alert', title: string) => {
         setStatus(`جاري جدولة ${type}...`);
 
+        // Use an empty string or dummy URI for testing since files are gone
+        const soundURI = '';
+
         if (permission !== 'granted') {
             await requestPermission();
         }
@@ -66,10 +69,6 @@ export default function TestNotifications() {
         const now = new Date();
         const fireTime = new Date(now.getTime() + 5000); // Fire in 5 seconds
 
-        // Sound names WITHOUT extension for native
-        let soundName = 'adhan';
-        if (type === 'gentle') soundName = 'gentle';
-        if (type === 'alert') soundName = 'alert';
 
         await scheduleNotification(
             title,
@@ -78,7 +77,7 @@ export default function TestNotifications() {
             `test-${type}-${Date.now()}`,
             'atTime',
             () => console.log('Notification Fired!'),
-            soundName
+            soundURI
         );
 
         setStatus(`تم جدولة ${type} - سيصل بعد 5 ثواني`);
@@ -114,7 +113,7 @@ export default function TestNotifications() {
                 `test-${prayer.id}`,
                 'atTime',
                 () => console.log(`${prayer.name} Adhan Fired`),
-                'adhan' // بدون .mp3
+                '' // No custom file
             );
             items.push({
                 prayer: prayer.name,
@@ -134,7 +133,7 @@ export default function TestNotifications() {
                 `test-${prayer.id}`,
                 'beforeEnd',
                 () => console.log(`${prayer.name} Warning Fired`),
-                'alert' // بدون .mp3
+                '' // No custom file
             );
             items.push({
                 prayer: prayer.name,

@@ -1,22 +1,18 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { registerPlugin } from '@capacitor/core';
+import { isNativeApp } from '@/lib/platform';
 
-/**
- * Storage keys
- */
-const STORAGE_KEY = 'selected-alarm-sound';
-const CUSTOM_SOUND_KEY = 'custom-alarm-sound-url';
+interface AlarmSchedulerPlugin {
+    pickRingtone(options: { currentUri?: string }): Promise<{ uri: string | null; name: string }>;
+    playAlarmSound(options: { sound: string; isPreview: boolean }): Promise<void>;
+    stopAlarmSound(): Promise<void>;
+}
+const AlarmScheduler = registerPlugin<AlarmSchedulerPlugin>('AlarmScheduler');
 
-/**
- * Available alarm sounds
- */
-export const ALARM_SOUNDS = [
-    { id: 'default', name: 'الافتراضية', url: '/sounds/alarm-default.mp3' }, // Adhan
-    { id: 'gentle', name: 'هادئة', url: '/sounds/alarm-gentle.mp3' },
-    { id: 'system', name: 'نغمة النظام', url: '' }, // System default alarm
-    { id: 'custom', name: 'صوت مخصص', url: '' }, // Custom uploaded sound
-] as const;
+const STORAGE_KEY_URI = 'selected-alarm-sound-uri';
+const STORAGE_KEY_NAME = 'selected-alarm-sound-name';
 
 // Extend window interface to store global audio
 declare global {
@@ -38,37 +34,32 @@ function setGlobalAudio(audio: HTMLAudioElement | null) {
     window.__GLOBAL_ALARM_AUDIO__ = audio;
 }
 
-export type AlarmSoundId = typeof ALARM_SOUNDS[number]['id'];
-
 /**
  * Hook return type
  */
 export interface UseAlarmSoundReturn {
-    selectedSound: AlarmSoundId;
-    setSelectedSound: (id: AlarmSoundId) => void;
-    setCustomSound: (file: File) => Promise<void>;
+    selectedSound: string; // The selected URI
+    soundName: string;     // Friendly name
+    setSelectedSound: (uri: string, name: string) => void;
+    pickSystemRingtone: () => Promise<void>;
     playAlarm: (loop?: boolean) => void;
     stopAlarm: () => void;
     isPlaying: boolean;
-    hasCustomSound: boolean;
 }
 
 /**
  * Load sound preference from localStorage (for lazy init)
  */
-function loadSoundPreference(): { sound: AlarmSoundId; customUrl: string | null } {
+function loadSoundPreference(): { uri: string; name: string } {
     if (typeof window === 'undefined') {
-        return { sound: 'default', customUrl: null };
+        return { uri: '', name: 'نغمة النظام' };
     }
     try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        const sound = (stored && ['default', 'gentle', 'system', 'custom'].includes(stored))
-            ? (stored as AlarmSoundId)
-            : 'default';
-        const customUrl = localStorage.getItem(CUSTOM_SOUND_KEY);
-        return { sound, customUrl };
+        const uri = localStorage.getItem(STORAGE_KEY_URI) || '';
+        const name = localStorage.getItem(STORAGE_KEY_NAME) || 'نغمة النظام';
+        return { uri, name };
     } catch {
-        return { sound: 'default', customUrl: null };
+        return { uri: '', name: 'نغمة النظام' };
     }
 }
 
@@ -76,53 +67,26 @@ function loadSoundPreference(): { sound: AlarmSoundId; customUrl: string | null 
  * useAlarmSound Hook
  * 
  * Manages alarm sound selection and playback.
- * Supports custom audio file upload stored as base64 in localStorage.
  */
 export function useAlarmSound(): UseAlarmSoundReturn {
-    // Lazy initialization from localStorage
-    const [selectedSound, setSelectedSoundState] = useState<AlarmSoundId>(() => loadSoundPreference().sound);
-    const [customSoundUrl, setCustomSoundUrl] = useState<string | null>(() => loadSoundPreference().customUrl);
+    const [selectedSound, setSelectedSoundState] = useState<string>(() => loadSoundPreference().uri);
+    const [soundName, setSoundNameState] = useState<string>(() => loadSoundPreference().name);
     const [isPlaying, setIsPlaying] = useState(false);
 
-    // Initial sync with global state
     useEffect(() => {
         const audio = getGlobalAudio();
         if (audio && !audio.paused) {
-            // Avoid direct state update in effect to satisfy linter
             setTimeout(() => setIsPlaying(true), 0);
         }
     }, []);
 
-    /**
-     * Set and save sound preference
-     */
-    const setSelectedSound = useCallback((id: AlarmSoundId) => {
-        setSelectedSoundState(id);
-        localStorage.setItem(STORAGE_KEY, id);
+    const setSelectedSound = useCallback((uri: string, name: string) => {
+        setSelectedSoundState(uri);
+        setSoundNameState(name);
+        localStorage.setItem(STORAGE_KEY_URI, uri);
+        localStorage.setItem(STORAGE_KEY_NAME, name);
     }, []);
 
-    /**
-     * Upload and save custom sound file (as base64 data URL)
-     */
-    const setCustomSound = useCallback(async (file: File): Promise<void> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const dataUrl = reader.result as string;
-                localStorage.setItem(CUSTOM_SOUND_KEY, dataUrl);
-                setCustomSoundUrl(dataUrl);
-                setSelectedSoundState('custom');
-                localStorage.setItem(STORAGE_KEY, 'custom');
-                resolve();
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    }, []);
-
-    /**
-     * Stop the alarm
-     */
     const stopAlarm = useCallback(() => {
         const audio = getGlobalAudio();
         if (audio) {
@@ -130,74 +94,71 @@ export function useAlarmSound(): UseAlarmSoundReturn {
             audio.currentTime = 0;
             setGlobalAudio(null);
         }
+        // Also tell native to stop
+        if (isNativeApp()) {
+            AlarmScheduler.stopAlarmSound().catch(() => { });
+        }
         setIsPlaying(false);
     }, []);
 
-    /**
-     * Play the selected alarm sound
-     */
-    const playAlarm = useCallback((loop: boolean = true) => {
-        // FORCE STOP any existing audio
+    const pickSystemRingtone = useCallback(async () => {
+        try {
+            const result = await AlarmScheduler.pickRingtone({
+                currentUri: selectedSound || undefined
+            });
+            if (result.uri !== undefined) {
+                setSelectedSound(result.uri || '', result.name || 'نغمة النظام');
+            }
+        } catch (error) {
+            console.error('Failed to pick ringtone', error);
+        }
+    }, [selectedSound, setSelectedSound]);
+
+    const playAlarm = useCallback(async (loop: boolean = true) => {
         stopAlarm();
 
-        let soundUrl: string;
+        if (isNativeApp()) {
+            try {
+                await AlarmScheduler.playAlarmSound({
+                    sound: selectedSound,
+                    isPreview: !loop // If loop=true, it's likely a real alarm, if loop=false it's a preview
+                });
+                setIsPlaying(true);
+            } catch (error) {
+                console.error('Native playback failed', error);
+            }
+            return;
+        }
 
-        if (selectedSound === 'custom' && customSoundUrl) {
-            soundUrl = customSoundUrl;
-        } else if (selectedSound === 'gentle') {
-            soundUrl = '/sounds/alarm-gentle.mp3';
-        } else {
-            soundUrl = '/sounds/alarm-default.mp3';
+        // Web Fallback
+        if (!selectedSound || selectedSound.startsWith('content://')) {
+            console.warn('Web view cannot play content:// URIs');
+            // Show UI feedback anyway
+            setIsPlaying(true);
+            setTimeout(() => setIsPlaying(false), 3000);
+            return;
         }
 
         const audio = new Audio();
         audio.loop = loop;
-        audio.preload = 'auto';
+        audio.src = selectedSound;
 
-        // Store globally BEFORE playing
         setGlobalAudio(audio);
-
-        // Reset state when audio ends (if not looping)
-        audio.onended = () => {
-            setIsPlaying(false);
-            if (getGlobalAudio() === audio) {
-                setGlobalAudio(null);
-            }
-        };
-
-        // Wait for audio to be ready before playing
-        audio.oncanplaythrough = () => {
-            if (getGlobalAudio() !== audio) return; // Audio was replaced before meaningful play
-
-            audio.play().then(() => {
-                setIsPlaying(true);
-            }).catch((err) => {
-                console.warn('Audio play failed:', err);
-                setIsPlaying(false);
-            });
-        };
-
-        audio.src = soundUrl;
-        audio.load(); // Ensure load starts
-    }, [selectedSound, customSoundUrl, stopAlarm]);
-
-    // Cleanup when component unmounts?
-    // User requested: "must leave settings page to stop overlapping"
-    // This implies we SHOULD stop audio when leaving the settings page context
-    useEffect(() => {
-        return () => {
-            // Optional: If you want sound to stop when navigating away
-            // stopAlarm(); 
-        };
-    }, []);
+        audio.play().then(() => {
+            setIsPlaying(true);
+        }).catch(() => {
+            setIsPlaying(true);
+            setTimeout(() => setIsPlaying(false), 3000);
+        });
+    }, [selectedSound, stopAlarm]);
 
     return {
         selectedSound,
+        soundName,
         setSelectedSound,
-        setCustomSound,
+        pickSystemRingtone,
         playAlarm,
         stopAlarm,
         isPlaying,
-        hasCustomSound: !!customSoundUrl,
     };
 }
